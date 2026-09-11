@@ -1,0 +1,1 @@
+ss="section">20-Sekunden-Duell</div><div class="card duel"><div class="duelbig">${duel?duel.score:s.
