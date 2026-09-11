@@ -1,0 +1,1 @@
+div class="row"><span>${r[0]}</span><span>${n[0]}</span></div><div class="progress"><span style="width:${clamp((s.lifetime-r[1])/(n[1]-r
