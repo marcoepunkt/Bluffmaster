@@ -1,0 +1,1 @@
+ item leaguecard"><div class="row"><div><div class="name">${league.tier}</div><div class="desc">Platz ${league.pos}/${league.count} · Bonusfaktor ×${league.factor}</div></div><button id="league-bonus" class="btn" ${s.leagueClaimed===s.weekKey||!s.friends.length?'disabled':''}>Wochenbonus</button></d
