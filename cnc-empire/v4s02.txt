@@ -1,0 +1,9 @@
+erbuchsen','Motorsport-Adapter','Medizintechnik-Träger','Luftfahrtbolzen','Getriebewellen','Robotergelenke','Pumpengehäuse','Sensoraufnahmen'];
+function dayKey(){return new Date().toISOString().slice(0,10)}
+function weekKey(){const d=new Date(),u=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()));const day=u.getUTCDay()||7;u.setUTCDate(u.getUTCDate()+4-day);const y=new Date(Date.UTC(u.getUTCFullYear(),0,1));const w=Math.ceil((((u-y)/86400000)+1)/7);return u.getUTCFullYear()+'-'+String(w).padStart(2,'0')}
+const fresh=()=>({name:'Meine Werkstatt',money:120,lifetime:120,runRevenue:120,week:0,weekKey:weekKey(),prestige:0,starsSpent:0,run:0,tap:1,m:{manual:1},friendCodes:[],friends:[],last:Date.now(),order:null,offers:[],orderStreak:0,ordersDone:0,duelBest:0,friendCode:'',playerSecret:'',onlineRegistered:false,buyMode:1,skills:{process:0,tools:0,sales:0,night:0,dispatch:0},dailyKey:dayKey(),daily:{},dailyClaimed:false,leagueClaimed:'',challengeInbox:[],challengeOutbox:[],activeChallenge:null});
+let raw={};try{raw=JSON.parse(localStorage.getItem(K)||localStorage.getItem(OLDK)||'{}')}catch{}
+let s={...fresh(),...raw};s.m={...fresh().m,...(raw.m||{})};for(const x of machines)if(s.m[x[0]]==null)s.m[x[0]]=0;s.skills={...fresh().skills,...(raw.skills||{})};
+['friendCodes','friends','offers','challengeInbox','challengeOutbox'].forEach(k=>{if(!Array.isArray(s[k]))s[k]=[]});if(s.runRevenue==null)s.runRevenue=s.run===0?(s.lifetime||120):120;if(s.starsSpent==null)s.starsSpent=0;if(s.ordersDone==null)s.ordersDone=0;if(s.orderStreak==null)s.orderStreak=0;if(!s.buyMode)s.buyMode=1;if(s.weekKey!==weekKey()){s.week=0;s.weekKey=weekKey();s.leagueClaimed=''}
+let tab='shop',duel=null,onlineBusy=false,lastSync=0,lastChallengeSync=0;
+const euro=n=>new Intl.NumberFormat('de-DE',{style:'
