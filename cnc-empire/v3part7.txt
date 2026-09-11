@@ -1,0 +1,18 @@
+el">Meistersterne</div><div class="value">${s.prestige}</div><div class="sub">${availableStars()} frei · ${s.starsSpent} investiert</div></div><div class="card stat"><div class="label">Duellbestwert</div><div class="value">${s.duelBest}</div><div class="sub">Teile / 20 s</div></div></div><div class="section">System</div><div class="card item"><div class="desc" style="margin-bottom:8px">Offline-Produktion aktuell bis ${offlineHours()} Stunden.</div><button class="btn danger" onclick="G.reset()">Spielstand löschen</button></div>`
+}
+function render(){
+  document.getElementById('root').innerHTML=`<div class="top"><div class="brand">CNC EMPIRE<small>Span zu Cash · Expansion</small></div><div class="pill">★ ${availableStars()} / ${s.prestige}</div></div>${tab==='shop'?shop():tab==='orders'?orders():tab==='board'?board():profile()}`;
+  const n=[['shop','⚙️','Werkstatt'],['orders','📋','Aufträge'],['board','🏆','Rangliste'],['profile','👤','Profil']];document.getElementById('nav').innerHTML=n.map(x=>`<button class="${tab===x[0]?'on':''}" onclick="G.tab('${x[0]}')"><span>${x[1]}</span>${x[2]}</button>`).join('')
+}
+window.G={
+  tap,buy,setBuyMode,acceptOffer,rerollOffers,orderNew,claim,buyStar,prestige,copyCode,addFriend,removeFriend,startDuel,
+  refreshFriends:()=>loadFriends(true),
+  tab:x=>{if(!duel){tab=x;render();if(x==='board'||x==='profile')loadFriends()}},
+  name:()=>{s.name=document.getElementById('nm').value.trim()||'Meine Werkstatt';save();toast('Name gespeichert');render();syncOnline(true)},
+  reset:()=>{if(confirm('Spielstand wirklich löschen? Dein Freundescode geht dabei ebenfalls verloren.')){localStorage.removeItem(K);localStorage.removeItem(OLDK);location.reload()}}
+};
+offline();render();ensureOnline().then(()=>{render();syncOnline(true);loadFriends()});
+setInterval(()=>{if(!duel){const v=auto();if(v){add(v);if(s.order)s.order.done=Math.min(s.order.q,s.order.done+partRate());save();render()}syncOnline()}},1000);
+document.addEventListener('visibilitychange',()=>{if(document.hidden)syncOnline(true)});
+window.addEventListener('online',()=>{toast('Wieder online');ensureOnline().then(()=>loadFriends())});
+})();

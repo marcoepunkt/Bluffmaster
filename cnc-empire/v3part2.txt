@@ -1,0 +1,49 @@
+ekKey()){s.week=0;s.weekKey=weekKey()}
+let tab='shop',duel=null,onlineBusy=false,lastSync=0;
+const euro=n=>new Intl.NumberFormat('de-DE',{style:'currency',currency:'EUR',maximumFractionDigits:Math.abs(Number(n)||0)<100?2:0}).format(Number(n)||0);
+const num=n=>new Intl.NumberFormat('de-DE',{maximumFractionDigits:0}).format(Number(n)||0);
+function save(){s.last=Date.now();localStorage.setItem(K,JSON.stringify(s))}
+function prestigeMult(){return 1+s.prestige*.12}
+function autoMult(){return prestigeMult()*(1+s.starShop.process*.25)}
+function tapMult(){return prestigeMult()*(1+s.starShop.tooling*.30)}
+function contractMult(){return 1+s.starShop.sales*.20}
+function offlineHours(){return Math.min(24,8+s.starShop.night*2)}
+function availableStars(){return Math.max(0,s.prestige-s.starsSpent)}
+function auto(){return machines.reduce((a,x)=>a+s.m[x[0]]*x[3],0)*autoMult()}
+function click(){return s.tap*tapMult()}
+function partRate(){return Math.max(.125,auto()/8)}
+function unitCost(x,level=s.m[x[0]]){return x[2]===0?0:x[2]*Math.pow(BUY_RATE,level)}
+function batchCost(x,n){if(x[2]===0||n<=0)return 0;const start=unitCost(x);return Math.floor(start*(Math.pow(BUY_RATE,n)-1)/(BUY_RATE-1))}
+function maxAffordable(x){if(x[2]===0)return 0;const start=unitCost(x);if(s.money<start)return 0;return Math.max(1,Math.floor(Math.log(1+s.money*(BUY_RATE-1)/start)/Math.log(BUY_RATE)+1e-9))}
+function buyCount(x){return s.buyMode==='max'?maxAffordable(x):Number(s.buyMode)||1}
+function displayBuyCost(x){const n=buyCount(x);return n>0?batchCost(x,n):Math.floor(unitCost(x))}
+function add(v,score=true){s.money+=v;s.lifetime+=v;s.runRevenue+=v;if(score)s.week+=v*.12}
+function toast(t){const e=document.createElement('div');e.className='toast';e.textContent=t;document.body.appendChild(e);setTimeout(()=>e.remove(),1700)}
+function buy(id){
+  const x=machines.find(z=>z[0]===id);if(!x)return;
+  let n=buyCount(x);if(n<1)return toast('Zu wenig Kapital');
+  let c=batchCost(x,n);if(s.money<c){n=maxAffordable(x);c=batchCost(x,n)}
+  if(n<1)return toast('Zu wenig Kapital');
+  s.money-=c;s.m[id]+=n;s.week+=c*.04;save();render();syncOnline();
+  if(n>1)toast(n+'× '+x[1]+' gekauft')
+}
+function setBuyMode(mode){s.buyMode=mode;save();render()}
+function tap(){if(duel){duel.score++;render();return}add(click());if(s.order)s.order.done=Math.min(s.order.q,s.order.done+1);save();render()}
+function orderType(){const r=Math.random();if(r<.16)return orderTypes[3];if(r<.40)return orderTypes[0];if(r<.80)return orderTypes[1];return orderTypes[2]}
+function makeOffer(){
+  const t=orderType();
+  const duration=Math.round(t.min+Math.random()*(t.max-t.min));
+  const scale=t.id==='proto'?.55:1;
+  const q=Math.max(t.base,Math.round(partRate()*duration*scale));
+  const mat=materials[Math.floor(Math.random()*materials.length)];
+  const name=jobNames[Math.floor(Math.random()*jobNames.length)];
+  const productionValue=Math.max(q*click()*.9,auto()*duration);
+  const streakBonus=1+Math.min(.25,s.contractStreak*.015);
+  const pay=Math.max(100,Math.round((productionValue*t.reward+q*click()*.35)*contractMult()*streakBonus));
+  return {id:Date.now().toString(36)+Math.random().toString(36).slice(2,7),type:t.id,typeName:t.name,icon:t.icon,className:t.className,name,mat,q,done:0,pay,duration};
+}
+function ensureOffers(force=false){
+  const count=3+s.starShop.planning;
+  if(force||!Array.isArray(s.offers)||s.offers.length!==count){s.offers=Array.from({length:count},()=>makeOffer());save()}
+}
+function acceptOffer(i){if(s.order)return toast('Erst laufenden Auftrag abschließen');ensureOffers();const o=s.offers[i];if(!o)return;

@@ -1,0 +1,46 @@
+s.order={...o,done:0};s.offers=[];save();render();toast(o.typeName+' angenommen')}
+function rerollOffers(){if(s.order)return toast('Laufender Auftrag aktiv');ensureOffers(true);render();toast('Auftragsbörse aktualisiert')}
+function orderNew(){ensureOffers(true);render()}
+function claim(){
+  if(!s.order||s.order.done<s.order.q)return;
+  const p=s.order.pay;add(p);s.week+=p*.20;s.contractStreak=(s.contractStreak||0)+1;toast('Auftrag abgerechnet: '+euro(p));s.order=null;ensureOffers(true);save();render();syncOnline(true)
+}
+function spentFor(id,levels){const u=starUpgrades[id];if(!u)return 0;let total=0;for(let i=0;i<levels;i++)total+=u.base+i*u.step;return total}
+function starCost(id){const u=starUpgrades[id],lv=s.starShop[id]||0;return u.base+lv*u.step}
+function buyStar(id){
+  const u=starUpgrades[id];if(!u)return;const lv=s.starShop[id]||0;if(lv>=u.max)return toast('Bereits maximal ausgebaut');
+  const c=starCost(id);if(availableStars()<c)return toast('Du brauchst '+c+' freie Meistersterne');
+  s.starShop[id]=lv+1;s.starsSpent+=c;
+  if(id==='planning')ensureOffers(true);
+  save();render();toast(u.name+' verbessert')
+}
+function prestige(){
+  if(s.runRevenue<250000)return toast('Noch '+euro(250000-s.runRevenue)+' bis Meisterprestige');
+  const gain=Math.max(1,Math.floor(Math.sqrt(s.runRevenue/250000)));
+  if(!confirm('Meisterlauf neu starten? Du erhältst '+gain+' Meistersterne. Permanente Meister-Upgrades bleiben erhalten.'))return;
+  const keep={name:s.name,prestige:s.prestige+gain,starsSpent:s.starsSpent,starShop:s.starShop,run:s.run+1,friendCodes:s.friendCodes,friends:s.friends,duelBest:s.duelBest,lifetime:s.lifetime,week:s.week,weekKey:s.weekKey,friendCode:s.friendCode,playerSecret:s.playerSecret,onlineRegistered:s.onlineRegistered,buyMode:s.buyMode};
+  s={...fresh(),...keep};save();render();syncOnline(true)
+}
+function randomSecret(){const a=new Uint8Array(32);crypto.getRandomValues(a);return Array.from(a,b=>b.toString(16).padStart(2,'0')).join('')}
+function randomFriendCode(){const chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';const a=new Uint8Array(8);crypto.getRandomValues(a);return Array.from(a,b=>chars[b%chars.length]).join('')}
+async function sha256(text){const d=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(text));return Array.from(new Uint8Array(d),b=>b.toString(16).padStart(2,'0')).join('')}
+function headers(extra={}){return {'apikey':APIKEY,'Authorization':'Bearer '+APIKEY,'Content-Type':'application/json','x-client-info':s.playerSecret,...extra}}
+function publicStats(){return {display_name:s.name,week_score:Math.max(0,Math.floor(s.week)),prestige:s.prestige,duel_best:s.duelBest,lifetime:Math.max(0,Math.floor(s.lifetime)),updated_at:new Date().toISOString()}}
+async function ensureOnline(){
+  if(onlineBusy||!navigator.onLine)return false;
+  if(!s.playerSecret){s.playerSecret=randomSecret();save()}
+  if(!s.friendCode){s.friendCode=randomFriendCode();s.onlineRegistered=false;save()}
+  if(s.onlineRegistered)return true;
+  onlineBusy=true;
+  try{
+    for(let i=0;i<4;i++){
+      const body={friend_code:s.friendCode,write_secret_hash:await sha256(s.playerSecret),...publicStats()};
+      const r=await fetch(API,{method:'POST',headers:headers({'Prefer':'return=minimal'}),body:JSON.stringify(body)});
+      if(r.ok){s.onlineRegistered=true;save();onlineBusy=false;return true}
+      if(r.status===409){s.friendCode=randomFriendCode();save();continue}
+      console.warn('CNC online register',r.status,await r.text());break;
+    }
+  }catch(e){console.warn('CNC online register',e)}
+  onlineBusy=false;return false
+}
+async function

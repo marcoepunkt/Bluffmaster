@@ -1,0 +1,61 @@
+(()=>{
+const K='cncEmpireMobileV2';
+const OLDK='cncEmpireMobileV1';
+const API='https://bssewblessvmhrytfojh.supabase.co/rest/v1/player_profiles';
+const APIKEY='sb_publishable_nnbYZe8ndtMaUkD5pEP-JQ_7Ff1c7d3';
+const BUY_RATE=1.18;
+const machines=[
+['manual','Konventionelle Drehbank',0,0,'🛠️'],
+['cnc','CNC-Drehmaschine',450,4,'⚙️'],
+['bar','Stangenlader-Zelle',3500,24,'🔩'],
+['turnmill','Dreh-Fräszentrum',18000,110,'🧰'],
+['robot','Roboterzelle',95000,520,'🤖'],
+['lights','Lights-Out Fertigung',550000,2900,'🏭'],
+['swiss','Langdrehautomat',3500000,17000,'🧷'],
+['grind','Schleifzelle',22000000,100000,'💎'],
+['fiveaxis','5-Achs-Bearbeitungszentrum',150000000,650000,'🛰️'],
+['fms','Flexibles Fertigungssystem',1100000000,5000000,'🔁'],
+['smart','Autonome Smart Factory',8500000000,42000000,'🧠']
+];
+const starUpgrades={
+  process:{name:'Prozessoptimierung',icon:'⚙️',desc:'+25 % automatische Produktion je Stufe',max:10,base:1,step:1},
+  tooling:{name:'Werkzeugtechnologie',icon:'🛠️',desc:'+30 % Erlös pro manuellem Teil je Stufe',max:8,base:1,step:1},
+  sales:{name:'Vertrieb & Kalkulation',icon:'📈',desc:'+20 % Auftragsprämie je Stufe',max:8,base:2,step:1},
+  night:{name:'Nachtschicht',icon:'🌙',desc:'+2 Stunden Offline-Produktion je Stufe',max:8,base:1,step:1},
+  planning:{name:'Disposition',icon:'📋',desc:'+1 Angebot in der Auftragsbörse je Stufe',max:2,base:3,step:2}
+};
+const materials=['1.4404','42CrMo4','Al 7075','1.4301','POM-C','1.4122','1.4305','C55E','Al 6082','1.4021','PE-HD','PET'];
+const jobNames=['Präzisionswellen','Flanschserie','Hydraulikhülsen','Distanzringe','Spindelmuttern','Ventilsitze','Führungsbuchsen','Antriebszapfen','Sensorhülsen','Kupplungsnaben','Düsenkörper','Lagerdeckel','Gewinderinge','Kolbenstangen','Adapterflansche','Spannhülsen'];
+const orderTypes=[
+  {id:'express',name:'Eilauftrag',icon:'⚡',min:18,max:35,reward:.72,base:25,className:'express'},
+  {id:'series',name:'Serienauftrag',icon:'📦',min:50,max:90,reward:.9,base:60,className:'series'},
+  {id:'bulk',name:'Großserie',icon:'🏭',min:130,max:220,reward:1.18,base:150,className:'bulk'},
+  {id:'proto',name:'Prototyp',icon:'🧪',min:10,max:22,reward:1.35,base:12,className:'proto'}
+];
+function weekKey(){
+  const d=new Date();
+  const u=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()));
+  const day=u.getUTCDay()||7;
+  u.setUTCDate(u.getUTCDate()+4-day);
+  const y=new Date(Date.UTC(u.getUTCFullYear(),0,1));
+  const w=Math.ceil((((u-y)/86400000)+1)/7);
+  return u.getUTCFullYear()+'-'+String(w).padStart(2,'0');
+}
+const fresh=()=>({
+  name:'Meine Werkstatt',money:120,lifetime:120,runRevenue:120,week:0,weekKey:weekKey(),prestige:0,run:0,tap:1,
+  m:{manual:1,cnc:0,bar:0,turnmill:0,robot:0,lights:0,swiss:0,grind:0,fiveaxis:0,fms:0,smart:0},
+  friendCodes:[],friends:[],last:Date.now(),order:null,offers:[],duelBest:0,contractStreak:0,
+  friendCode:'',playerSecret:'',onlineRegistered:false,buyMode:'1',starShop:{process:0,tooling:0,sales:0,night:0,planning:0},starsSpent:0
+});
+let raw={};
+try{raw=JSON.parse(localStorage.getItem(K)||localStorage.getItem(OLDK)||'{}')}catch{}
+let s={...fresh(),...raw};
+s.m={...fresh().m,...(raw.m||{})};
+s.starShop={...fresh().starShop,...(raw.starShop||{})};
+if(!Array.isArray(s.friendCodes))s.friendCodes=[];
+if(!Array.isArray(s.friends))s.friends=[];
+if(!Array.isArray(s.offers))s.offers=[];
+if(s.runRevenue==null)s.runRevenue=s.run===0?(s.lifetime||120):120;
+if(s.starsSpent==null)s.starsSpent=Object.entries(s.starShop).reduce((sum,[id,lv])=>sum+spentFor(id,Number(lv)||0),0);
+if(!['1','10','max'].includes(String(s.buyMode)))s.buyMode='1';
+if(s.weekKey!==we
