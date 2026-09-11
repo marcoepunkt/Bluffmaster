@@ -1,0 +1,44 @@
+(()=>{
+const K='cncEmpireMobileV2', OLDK='cncEmpireMobileV1';
+const CFG=window.CNC_BACKEND||{};
+const API=CFG.api;
+const CHAPI=CFG.challengeApi||String(API||'').replace('player_profiles','friend_challenges');
+const APIKEY=CFG.key;
+const machines=[
+['manual','Konventionelle Drehbank',0,0,'🛠️'],['cnc','CNC-Drehmaschine',450,4,'⚙️'],['bar','Stangenlader-Zelle',3500,24,'🔩'],['turnmill','Dreh-Fräszentrum',18000,110,'🧰'],['robot','Roboterzelle',95000,520,'🤖'],['lights','Lights-Out Fertigung',550000,2900,'🏭'],
+['swiss','Langdrehautomat',2400000,12500,'🧷'],['grind','Schleifzelle',9000000,52000,'💿'],['fiveaxis','5-Achs-Zentrum',42000000,250000,'🌀'],['fms','FMS-Palettensystem',180000000,1250000,'📦'],['smart','Autonome Smart Factory',950000000,7200000,'🌐']];
+const rankTiers=[
+['Garagenbetrieb',0,'🔧'],['Lohnfertiger',250000,'🏭'],['Serienfertiger',2500000,'⚙️'],['Industriebetrieb',25000000,'🏢'],['Tier-1 Zulieferer',250000000,'🚛'],['Globaler Fertigungskonzern',2500000000,'🌍'],['Industrie-Imperium',25000000000,'👑']];
+const starUpgrades={
+process:{name:'Prozessoptimierung',icon:'⚙️',desc:'+18 % automatische Produktion je Stufe',base:1,max:12},
+tools:{name:'Werkzeugtechnologie',icon:'🛠️',desc:'+25 % manueller Ertrag je Stufe',base:1,max:10},
+sales:{name:'Vertrieb & Kalkulation',icon:'📈',desc:'+12 % Auftragsprämie je Stufe',base:1,max:10},
+night:{name:'Nachtschicht',icon:'🌙',desc:'+2 h Offline-Produktion je Stufe',base:1,max:8},
+dispatch:{name:'Disposition',icon:'📋',desc:'+1 Angebot in der Auftragsbörse je Stufe',base:2,max:4}
+};
+const materialPool=['1.4301','1.4305','1.4404','42CrMo4','C55E','1.4122','Al 6082','Al 7075','POM-C','PE','PET','Titan Grade 5','Inconel 718'];
+const jobNames=['Präzisionswellen','Ventilsitze','Flanschserie','Hydraulikhülsen','Distanzringe','Spindelmuttern','Lagerbuchsen','Motorsport-Adapter','Medizintechnik-Träger','Luftfahrtbolzen','Getriebewellen','Robotergelenke','Pumpengehäuse','Sensoraufnahmen'];
+function dayKey(){return new Date().toISOString().slice(0,10)}
+function weekKey(){const d=new Date(),u=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()));const day=u.getUTCDay()||7;u.setUTCDate(u.getUTCDate()+4-day);const y=new Date(Date.UTC(u.getUTCFullYear(),0,1));const w=Math.ceil((((u-y)/86400000)+1)/7);return u.getUTCFullYear()+'-'+String(w).padStart(2,'0')}
+const fresh=()=>({name:'Meine Werkstatt',money:120,lifetime:120,runRevenue:120,week:0,weekKey:weekKey(),prestige:0,starsSpent:0,run:0,tap:1,m:{manual:1},friendCodes:[],friends:[],last:Date.now(),order:null,offers:[],orderStreak:0,ordersDone:0,duelBest:0,friendCode:'',playerSecret:'',onlineRegistered:false,buyMode:1,skills:{process:0,tools:0,sales:0,night:0,dispatch:0},dailyKey:dayKey(),daily:{},dailyClaimed:false,leagueClaimed:'',challengeInbox:[],challengeOutbox:[],activeChallenge:null});
+let raw={};try{raw=JSON.parse(localStorage.getItem(K)||localStorage.getItem(OLDK)||'{}')}catch{}
+let s={...fresh(),...raw};s.m={...fresh().m,...(raw.m||{})};for(const x of machines)if(s.m[x[0]]==null)s.m[x[0]]=0;s.skills={...fresh().skills,...(raw.skills||{})};
+['friendCodes','friends','offers','challengeInbox','challengeOutbox'].forEach(k=>{if(!Array.isArray(s[k]))s[k]=[]});if(s.runRevenue==null)s.runRevenue=s.run===0?(s.lifetime||120):120;if(s.starsSpent==null)s.starsSpent=0;if(s.ordersDone==null)s.ordersDone=0;if(s.orderStreak==null)s.orderStreak=0;if(!s.buyMode)s.buyMode=1;if(s.weekKey!==weekKey()){s.week=0;s.weekKey=weekKey();s.leagueClaimed=''}
+let tab='shop',duel=null,onlineBusy=false,lastSync=0,lastChallengeSync=0;
+const euro=n=>new Intl.NumberFormat('de-DE',{style:'currency',currency:'EUR',maximumFractionDigits:(Number(n)||0)<100?2:0}).format(Number(n)||0),num=n=>new Intl.NumberFormat('de-DE',{maximumFractionDigits:0}).format(Number(n)||0),clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+function save(){s.last=Date.now();localStorage.setItem(K,JSON.stringify(s))}
+function availableStars(){return Math.max(0,s.prestige-s.starsSpent)}
+function prestigeMult(){return 1+s.prestige*.12}
+function processMult(){return Math.pow(1.18,s.skills.process||0)}
+function toolMult(){return Math.pow(1.25,s.skills.tools||0)}
+function salesMult(){return Math.pow(1.12,s.skills.sales||0)}
+function mult(){return prestigeMult()*processMult()}
+function auto(){return machines.reduce((a,x)=>a+s.m[x[0]]*x[3],0)*mult()}
+function click(){return s.tap*prestigeMult()*toolMult()}
+function offlineHours(){return Math.min(24,8+(s.skills.night||0)*2)}
+function offerCount(){return 3+(s.skills.dispatch||0)}
+function costOne(x,lv=s.m[x[0]]){return x[2]===0?0:Math.floor(x[2]*Math.pow(1.18,lv))}
+function bulkCost(x,n){let c=0,lv=s.m[x[0]];for(let i=0;i<n;i++)c+=costOne(x,lv+i);return c}
+function maxAffordable(x){if(x[2]===0)return 0;let n=0,c=0,lv=s.m[x[0]];while(n<250){const next=costOne(x,lv+n);if(c+next>s.money)break;c+=next;n++}return n}
+function add(v,score=true){s.money+=v;s.lifetime+=v;s.runRevenue+=v;if(score)s.week+=v*.12;dailyProgress('earn',v)}
+function toast(t){const e=documen
