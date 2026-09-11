@@ -1,0 +1,20 @@
+(()=>{
+const K='cncEmpireMobileV2', OLDK='cncEmpireMobileV1';
+const CFG=window.CNC_BACKEND||{};
+const API=CFG.api;
+const CHAPI=CFG.challengeApi||String(API||'').replace('player_profiles','friend_challenges');
+const APIKEY=CFG.key;
+const machines=[
+['manual','Konventionelle Drehbank',0,0,'🛠️'],['cnc','CNC-Drehmaschine',450,4,'⚙️'],['bar','Stangenlader-Zelle',3500,24,'🔩'],['turnmill','Dreh-Fräszentrum',18000,110,'🧰'],['robot','Roboterzelle',95000,520,'🤖'],['lights','Lights-Out Fertigung',550000,2900,'🏭'],
+['swiss','Langdrehautomat',2400000,12500,'🧷'],['grind','Schleifzelle',9000000,52000,'💿'],['fiveaxis','5-Achs-Zentrum',42000000,250000,'🌀'],['fms','FMS-Palettensystem',180000000,1250000,'📦'],['smart','Autonome Smart Factory',950000000,7200000,'🌐']];
+const rankTiers=[
+['Garagenbetrieb',0,'🔧'],['Lohnfertiger',250000,'🏭'],['Serienfertiger',2500000,'⚙️'],['Industriebetrieb',25000000,'🏢'],['Tier-1 Zulieferer',250000000,'🚛'],['Globaler Fertigungskonzern',2500000000,'🌍'],['Industrie-Imperium',25000000000,'👑']];
+const starUpgrades={
+process:{name:'Prozessoptimierung',icon:'⚙️',desc:'+18 % automatische Produktion je Stufe',base:1,max:12},
+tools:{name:'Werkzeugtechnologie',icon:'🛠️',desc:'+25 % manueller Ertrag je Stufe',base:1,max:10},
+sales:{name:'Vertrieb & Kalkulation',icon:'📈',desc:'+12 % Auftragsprämie je Stufe',base:1,max:10},
+night:{name:'Nachtschicht',icon:'🌙',desc:'+2 h Offline-Produktion je Stufe',base:1,max:8},
+dispatch:{name:'Disposition',icon:'📋',desc:'+1 Angebot in der Auftragsbörse je Stufe',base:2,max:4}
+};
+const materialPool=['1.4301','1.4305','1.4404','42CrMo4','C55E','1.4122','Al 6082','Al 7075','POM-C','PE','PET','Titan Grade 5','Inconel 718'];
+const jobNames=['Präzisionswellen','Ventilsitze','Flanschserie','Hydraulikhülsen','Distanzringe','Spindelmuttern','Lag
