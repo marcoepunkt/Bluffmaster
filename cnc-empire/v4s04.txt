@@ -1,0 +1,11 @@
+ Teile manuell',type:'tap',goal:100,reward:Math.max(500,base*20)},
+{id:'orders',label:'Auftragsjäger',desc:'Schließe 3 Aufträge ab',type:'orders',goal:3,reward:Math.max(1200,base*45)},
+{id:'earn',label:'Tagesumsatz',desc:'Verdiene '+euro(Math.max(5000,base*600)),type:'earn',goal:Math.max(5000,base*600),reward:Math.max(2500,base*80)}];}
+function ensureDaily(){if(s.dailyKey!==dayKey()){s.dailyKey=dayKey();s.daily={};s.dailyClaimed=false;save()}}
+function dailyProgress(type,v=1){ensureDaily();s.daily[type]=(s.daily[type]||0)+v}
+function claimDaily(){ensureDaily();const defs=dailyDefs();if(!defs.every(d=>(s.daily[d.type]||0)>=d.goal))return toast('Noch nicht alle Tagesaufgaben erledigt');if(s.dailyClaimed)return toast('Tagesbonus bereits abgeholt');const reward=defs.reduce((a,d)=>a+d.reward,0)*1.5;add(reward,false);s.dailyClaimed=true;toast('Tagesbonus '+euro(reward));save();render()}
+function starCost(key){const lv=s.skills[key]||0;return starUpgrades[key].base+Math.floor(lv/2)}
+function buyStar(key){const u=starUpgrades[key],lv=s.skills[key]||0,c=starCost(key);if(lv>=u.max)return toast('Maximale Stufe erreicht');if(availableStars()<c)return toast('Zu wenig freie Meistersterne');s.skills[key]=lv+1;s.starsSpent+=c;toast(u.name+' verbessert');save();render();syncOnline(true)}
+function buy(id){const x=machines.find(z=>z[0]===id);let n=s.buyMode==='max'?maxAffordable(x):Number(s.buyMode)||1;if(n<1)return toast('Zu wenig Kapital');const c=bulkCost(x,n);if(s.money<c)return toast('Zu wenig Kapital');s.money-=c;s.m[id]+=n;s.week+=c*.04;dailyProgress('buy',n);toast(n+'× '+x[1]);save();render();syncOnline()}
+function setBuyMode(v){s.buyMode=v;save();render()}
+function tap(){if(duel){duel.score++;render();return}add(click());dailyProgress('tap',1);if(s.order)s.order.done=Math.min(s.o
