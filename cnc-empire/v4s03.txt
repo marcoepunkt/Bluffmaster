@@ -1,0 +1,21 @@
+currency',currency:'EUR',maximumFractionDigits:(Number(n)||0)<100?2:0}).format(Number(n)||0),num=n=>new Intl.NumberFormat('de-DE',{maximumFractionDigits:0}).format(Number(n)||0),clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+function save(){s.last=Date.now();localStorage.setItem(K,JSON.stringify(s))}
+function availableStars(){return Math.max(0,s.prestige-s.starsSpent)}
+function prestigeMult(){return 1+s.prestige*.12}
+function processMult(){return Math.pow(1.18,s.skills.process||0)}
+function toolMult(){return Math.pow(1.25,s.skills.tools||0)}
+function salesMult(){return Math.pow(1.12,s.skills.sales||0)}
+function mult(){return prestigeMult()*processMult()}
+function auto(){return machines.reduce((a,x)=>a+s.m[x[0]]*x[3],0)*mult()}
+function click(){return s.tap*prestigeMult()*toolMult()}
+function offlineHours(){return Math.min(24,8+(s.skills.night||0)*2)}
+function offerCount(){return 3+(s.skills.dispatch||0)}
+function costOne(x,lv=s.m[x[0]]){return x[2]===0?0:Math.floor(x[2]*Math.pow(1.18,lv))}
+function bulkCost(x,n){let c=0,lv=s.m[x[0]];for(let i=0;i<n;i++)c+=costOne(x,lv+i);return c}
+function maxAffordable(x){if(x[2]===0)return 0;let n=0,c=0,lv=s.m[x[0]];while(n<250){const next=costOne(x,lv+n);if(c+next>s.money)break;c+=next;n++}return n}
+function add(v,score=true){s.money+=v;s.lifetime+=v;s.runRevenue+=v;if(score)s.week+=v*.12;dailyProgress('earn',v)}
+function toast(t){const e=document.createElement('div');e.className='toast';e.textContent=t;document.body.appendChild(e);setTimeout(()=>e.remove(),1600)}
+function companyRank(){let r=rankTiers[0];for(const x of rankTiers)if(s.lifetime>=x[1])r=x;return r}
+function nextRank(){return rankTiers.find(x=>x[1]>s.lifetime)||null}
+function dailyDefs(){const base=Math.max(1,auto());return [
+{id:'tap',label:'Schichtbeginn',desc:'Fertige 100
