@@ -1,0 +1,1 @@
+iv></div><div class="section">Wochenrangliste</div><div class="card item">${all.map((p,i)=>`<div class="leader"><b>${i+1}</b><div><div class="name">${p.n}${p.you?' · DU':''}</div><div class="muted">${p.p||0} ★ Meister</div></div><div class="score">${num(p.w||0)}</div></div>`).join('')}</div><div cla
