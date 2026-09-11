@@ -1,0 +1,3 @@
+er='Bronze',factor=1;if(pos===1){tier='Meisterklasse';factor=5}else if(pos<=Math.ceil(count*.25)){tier='Platin';factor=4}else if(pos<=Math.ceil(count*.5)){tier='Gold';factor=3}else if(pos<=Math.ceil(count*.75)){tier='Silber';factor=2}return{all,pos,count,tier,factor}}
+function collectLeague(){const key=s.weekKey;if(s.leagueClaimed===key)return toast('Wochenbonus bereits abgeholt');const l=leagueData();if(s.friends.length<1)return toast('Füge mindestens einen Freund für die Liga hinzu');const bonus=Math.max(1000,auto()*120*l.factor);add(bonus,false);s.leagueClaimed=key;toast(l.tier+': '+euro(bonus)+' Wochenbonus');save();render();syncOnline(true)}
+function stats(){const r=companyRank(),n=nextRank();return`
