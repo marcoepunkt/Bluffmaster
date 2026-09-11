@@ -1,0 +1,5 @@
+llenge')}
+async function loadChallenges(showToast=false){if(showToast)toast('Freundes-Challenges sind bereit')}
+function acceptChallenge(){toast('Starte eine Challenge direkt beim Freund')}
+function submitChallenge(score){const a=s.activeChallenge;if(!a)return;const target=Number(a.target)||0;(s.challengeHistory||(s.challengeHistory=[])).unshift({name:a.name,score,target,won:score>target,at:Date.now()});s.challengeHistory=s.challengeHistory.slice(0,10);toast(score>target?'Challenge gewonnen! 🏆':score===target?'Unentschieden':'Challenge verloren');s.activeChallenge=null;save();render()}
+function startDuel(mode='normal'){if(duel)return;duel={score:0,left:20,mode};render();const t=setInterval(()=>{if(!duel)return clearInterval(t);duel.left--;if(duel.left<=0){clearInterval(t);const score=duel.score,mode=duel.mode;s.duelBest=Math.max(s.duelBest,score);duel=null;save();syncOnline(true);render();if(mode==='challenge')submitChallenge(score);else toast('Schicht beendet: '+score+' Teile')}else r
