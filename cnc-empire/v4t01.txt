@@ -1,0 +1,8 @@
+gen')}}
+async function addFriend(){const el=document.getElementById('friendcode'),code=(el?.value||'').toUpperCase().replace(/[^A-Z0-9]/g,'');if(code.length!==8)return toast('Freundescode hat 8 Zeichen');if(code===s.friendCode)return toast('Das ist dein eigener Code');if(s.friendCodes.includes(code))return toast('Freund schon hinzugefügt');s.friendCodes.push(code);save();toast('Freundescode hinzugefügt');await loadFriends(true)}
+function removeFriend(code){s.friendCodes=s.friendCodes.filter(c=>c!==code);s.friends=s.friends.filter(f=>f.code!==code);save();render()}
+function copyCode(){if(!s.friendCode)return toast('Online-Code wird erstellt');navigator.clipboard?.writeText(s.friendCode);toast('Freundescode kopiert')}
+function createChallenge(code){const f=s.friends.find(x=>x.code===code);if(!f)return toast('Freund noch nicht synchronisiert');s.activeChallenge={code,name:f.n,target:Number(f.d)||0};save();toast('Challenge gegen '+f.n+' – schlag '+(Number(f.d)||0)+' Teile!');startDuel('challenge')}
+async function loadChallenges(showToast=false){if(showToast)toast('Freundes-Challenges sind bereit')}
+function acceptChallenge(){toast('Starte eine Challenge direkt beim Freund')}
+function s
