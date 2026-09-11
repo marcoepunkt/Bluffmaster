@@ -1,0 +1,1 @@
+<div class="grid"><div class="card stat"><div class="label">Kontostand</div><div class="value">${euro(s.money)}</div><div class="sub">Gesamt ${euro(s.lifetime)}</div></div><div class="card stat"><div class="label">Automatisch</div><div class="value">${euro(auto())}/s</div><div class="sub">${r[2]} ${r[0]}</div></div></div>${n?`<div class="rankbar"><
