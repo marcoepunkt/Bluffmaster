@@ -1,4 +1,3 @@
-ekKey()){s.week=0;s.weekKey=weekKey()}
 let tab='shop',duel=null,onlineBusy=false,lastSync=0;
 const euro=n=>new Intl.NumberFormat('de-DE',{style:'currency',currency:'EUR',maximumFractionDigits:Math.abs(Number(n)||0)<100?2:0}).format(Number(n)||0);
 const num=n=>new Intl.NumberFormat('de-DE',{maximumFractionDigits:0}).format(Number(n)||0);
@@ -53,4 +52,8 @@ function ensureOffers(force=false){
   const count=3+s.starShop.planning;
   if(force||!Array.isArray(s.offers)||s.offers.length!==count){s.offers=Array.from({length:count},()=>makeOffer());save()}
 }
-function acceptOffer(i){if(s.order)return toast('Erst laufenden Auftrag abschließen');ensureOffers();const o=s.offers[i];if(!o)return;
+function acceptOffer(i){
+  if(s.order)return toast('Erst laufenden Auftrag abschließen');
+  ensureOffers();const o=s.offers[i];if(!o)return;
+  s.order={...o,done:0,acceptedAt:Date.now()};s.offers=[];save();render();toast(o.typeName+' angenommen')
+}
