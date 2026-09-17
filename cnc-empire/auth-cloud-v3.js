@@ -4,7 +4,7 @@ const OWNER_KEY='cncEmpireCloudOwnerV2';
 const SEASON_KEY='cncEmpireSeason';
 const CURRENT_SEASON='2';
 const SAVE_TABLE='player_saves_s2';
-const GAME_PART_VERSION='10';
+const GAME_PART_VERSION='11';
 const CLOUD_INTERVAL_MS=5000;
 let supabase=null,session=null,gameLoaded=false,cloudTimer=null,cloudBusy=false,lastUploaded='',onlineSystems=null,operationsSystems=null;
 const $=id=>document.getElementById(id);
