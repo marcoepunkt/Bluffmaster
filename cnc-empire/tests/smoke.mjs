@@ -13,6 +13,16 @@ for(let i=1;i<=7;i++){
   parts.push(text);
   ok(`v3part${i}.txt vorhanden`);
 }
+const expectedStarts=['(()=>{','let tab=','function rerollOffers','async function syncOnline','function starShop','function board','function render'];
+for(let i=0;i<parts.length;i++){
+  if(!parts[i].trimStart().startsWith(expectedStarts[i]))fail(`v3part${i+1}.txt beginnt nicht an einer sauberen Funktionsgrenze`);
+  ok(`v3part${i+1}.txt startet sauber`);
+}
+for(const [i,bad] of [[0,'!==we'],[1,'if(!o)return;'],[2,'async function'],[3,'>${l}</'],[4,'skalieren jet'],[5,'class="lab']]){
+  if(parts[i].trimEnd().endsWith(bad))fail(`v3part${i+1}.txt endet wieder mitten in Code/Template: ${bad}`);
+}
+ok('Alle Core-Dateigrenzen sind sauber');
+
 const game=parts.join('');
 try{new Function(game);ok('Zusammengesetzter Spielkern ist syntaktisch gültig')}catch(e){fail(`Spielkern-Syntaxfehler: ${e.message}`)}
 
@@ -48,14 +58,14 @@ for(const marker of forbiddenGame){if(game.includes(marker))fail(`Alte Balance-L
 const index=await fs.readFile(path.join(root,'index.html'),'utf8');
 if(index.includes('active-production-v1.js'))fail('Veralteter Active-Production-Patch ist wieder eingebunden');
 ok('Kein alter Active-Production-Patch geladen');
-if(!index.includes('auth-cloud-v3.js?v=15'))fail('Aktueller Cloud-Loader fehlt in index.html');
+if(!index.includes('auth-cloud-v3.js?v=16'))fail('Aktueller Cloud-Loader fehlt in index.html');
 ok('Aktueller Cloud-Loader eingebunden');
 if(!index.includes('clan-events-bootstrap-v1.js?v=5'))fail('Aktueller Firmen-Cup-Bootstrap fehlt');
 ok('Aktueller Firmen-Cup-Bootstrap eingebunden');
 
 const auth=await fs.readFile(path.join(root,'auth-cloud-v3.js'),'utf8');
 try{new Function(auth);ok('Cloud-Loader ist syntaktisch gültig')}catch(e){fail(`Cloud-Loader-Syntaxfehler: ${e.message}`)}
-for(const marker of ['player_saves_s2','GAME_PART_VERSION',"new Function(parts.join(''))","operations-v1.js?v=9"]){
+for(const marker of ['player_saves_s2',"GAME_PART_VERSION='11'", "new Function(parts.join(''))","operations-v1.js?v=9"]){
   if(!auth.includes(marker))fail(`Cloud-Loader-Invariante fehlt: ${marker}`);
   ok(`Cloud-Invariante ${marker}`);
 }
