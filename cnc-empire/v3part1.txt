@@ -1,7 +1,7 @@
 (()=>{
 const K='cncEmpireMobileV2';
 const OLDK='cncEmpireMobileV1';
-const API='https://bssewblessvmhrytfojh.supabase.co/rest/v1/player_profiles';
+const API='https://bssewblessvmhrytfojh.supabase.co/rest/v1/player_profiles_s2';
 const APIKEY='sb_publishable_nnbYZe8ndtMaUkD5pEP-JQ_7Ff1c7d3';
 const BUY_RATE=1.22;
 const machines=[
