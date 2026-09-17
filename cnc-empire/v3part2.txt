@@ -11,7 +11,10 @@ function offlineHours(){return Math.min(24,8+s.starShop.night*2)}
 function availableStars(){return Math.max(0,s.prestige-s.starsSpent)}
 function auto(){return machines.reduce((a,x)=>a+s.m[x[0]]*x[3],0)*autoMult()}
 function click(){return s.tap*tapMult()}
+function machineBase(){return machines.reduce((a,x)=>a+s.m[x[0]]*x[3],0)}
+function manualClickCash(){return Math.max(s.tap,machineBase()*.08)*tapMult()}
 function partRate(){return Math.max(.125,auto()/8)}
+function orderClickParts(){return Math.max(1,Math.round(partRate()*.15*(1+s.starShop.tooling*.05)))}
 function unitCost(x,level=s.m[x[0]]){return x[2]===0?0:x[2]*Math.pow(BUY_RATE,level)}
 function batchCost(x,n){if(x[2]===0||n<=0)return 0;const start=unitCost(x);return Math.floor(start*(Math.pow(BUY_RATE,n)-1)/(BUY_RATE-1))}
 function maxAffordable(x){if(x[2]===0)return 0;const start=unitCost(x);if(s.money<start)return 0;return Math.max(1,Math.floor(Math.log(1+s.money*(BUY_RATE-1)/start)/Math.log(BUY_RATE)+1e-9))}
@@ -28,7 +31,7 @@ function buy(id){
   if(n>1)toast(n+'× '+x[1]+' gekauft')
 }
 function setBuyMode(mode){s.buyMode=mode;save();render()}
-function tap(){if(duel){duel.score++;render();return}add(click());if(s.order)s.order.done=Math.min(s.order.q,s.order.done+1);save();render()}
+function tap(){if(duel){duel.score++;render();return}add(manualClickCash());if(s.order)s.order.done=Math.min(s.order.q,s.order.done+orderClickParts());save();render()}
 function orderType(){const r=Math.random();if(r<.16)return orderTypes[3];if(r<.40)return orderTypes[0];if(r<.80)return orderTypes[1];return orderTypes[2]}
 function makeOffer(){
   const t=orderType();
