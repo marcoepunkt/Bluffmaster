@@ -5,28 +5,28 @@ const MATERIALS={
   '1.4305':7.5,'C55E':5.5,'Al 6082':4.8,'1.4021':6.2,'PE-HD':2.4,'PET':2.7
 };
 const ROLES={
-  operator:{name:'Maschinenbediener',icon:'👷',desc:'+3 % Maschinenleistung je Mitarbeiter · beschleunigt Sägen & Versand',base:4000,rate:1.62,max:10},
-  setter:{name:'Einrichter',icon:'🔧',desc:'+5 % Maschinenleistung je Mitarbeiter · beschleunigt Drehen',base:15000,rate:1.68,max:8},
-  programmer:{name:'CNC-Programmierer',icon:'💻',desc:'+6 % Maschinenleistung je Mitarbeiter · optimiert Drehprozesse',base:65000,rate:1.72,max:6},
-  quality:{name:'Qualitätssicherung',icon:'📏',desc:'verbessert Gutteilquote und Prüfgeschwindigkeit',base:35000,rate:1.66,max:8},
-  master:{name:'Meister',icon:'⭐',desc:'+8 % Maschinenleistung je Meister · stärkt alle Bereiche',base:250000,rate:1.80,max:4}
+  operator:{name:'Maschinenbediener',icon:'👷',desc:'+1,5 % Maschinenleistung je Mitarbeiter · beschleunigt Sägen & Versand',base:6000,rate:1.85,max:10},
+  setter:{name:'Einrichter',icon:'🔧',desc:'+2,5 % Maschinenleistung je Mitarbeiter · beschleunigt Drehen',base:25000,rate:1.90,max:8},
+  programmer:{name:'CNC-Programmierer',icon:'💻',desc:'+3 % Maschinenleistung je Mitarbeiter · optimiert Drehprozesse',base:100000,rate:1.95,max:6},
+  quality:{name:'Qualitätssicherung',icon:'📏',desc:'verbessert Gutteilquote und Prüfgeschwindigkeit',base:60000,rate:1.85,max:8},
+  master:{name:'Meister',icon:'⭐',desc:'+4 % Maschinenleistung je Meister · stärkt alle Bereiche',base:400000,rate:2.00,max:4}
 };
 const SHIFTS={
   early:{name:'Frühschicht',icon:'🌅',mult:1,need:0,staff:0,desc:'Solider Einschichtbetrieb.'},
-  late:{name:'Früh + Spät',icon:'🌆',mult:1.12,need:25000,staff:2,desc:'+12 % Maschinenleistung. Ab 25.000 € Gesamtumsatz und 2 Mitarbeitern.'},
-  night:{name:'3-Schicht',icon:'🌙',mult:1.25,need:250000,staff:5,desc:'+25 % Maschinenleistung. Ab 250.000 € Gesamtumsatz und 5 Mitarbeitern.'}
+  late:{name:'Früh + Spät',icon:'🌆',mult:1.08,need:50000,staff:2,desc:'+8 % Maschinenleistung. Ab 50.000 € Gesamtumsatz und 2 Mitarbeitern.'},
+  night:{name:'3-Schicht',icon:'🌙',mult:1.16,need:750000,staff:6,desc:'+16 % Maschinenleistung. Ab 750.000 € Gesamtumsatz und 6 Mitarbeitern.'}
 };
 const UPGRADES={
-  highPressure:{name:'Hochdruck-KSS',icon:'💧',desc:'-12 % Werkzeugverschleiß je Stufe · +3 % Drehleistung in der Kette',base:18000,rate:2.15,max:3},
-  probe:{name:'Messtaster',icon:'🎯',desc:'+0,2 % Gutteilquote und +3 % Prüfleistung je Stufe',base:30000,rate:2.25,max:3},
-  toolMeasure:{name:'Werkzeugvermessung',icon:'📐',desc:'-15 % Störungsrisiko und -8 % Maschinenverschleiß je Stufe',base:45000,rate:2.30,max:3},
-  chuck:{name:'Optimierte Spanntechnik',icon:'🗜️',desc:'+4 % Drehleistung in der Produktionskette je Stufe',base:70000,rate:2.35,max:3},
-  barfeed:{name:'Stangenlader-Optimierung',icon:'🔩',desc:'+4 % Sägen und Versand je Stufe',base:95000,rate:2.40,max:3}
+  highPressure:{name:'Hochdruck-KSS',icon:'💧',desc:'-12 % Werkzeugverschleiß je Stufe · +3 % Drehleistung in der Kette',base:40000,rate:3.00,max:3},
+  probe:{name:'Messtaster',icon:'🎯',desc:'+0,2 % Gutteilquote und +3 % Prüfleistung je Stufe',base:90000,rate:3.00,max:3},
+  toolMeasure:{name:'Werkzeugvermessung',icon:'📐',desc:'-15 % Störungsrisiko und -8 % Maschinenverschleiß je Stufe',base:180000,rate:3.00,max:3},
+  chuck:{name:'Optimierte Spanntechnik',icon:'🗜️',desc:'+4 % Drehleistung in der Produktionskette je Stufe',base:400000,rate:3.00,max:3},
+  barfeed:{name:'Stangenlader-Optimierung',icon:'🔩',desc:'+4 % Sägen und Versand je Stufe',base:700000,rate:3.00,max:3}
 };
 const INCIDENTS=['Werkzeugbruch','KSS-Druck zu niedrig','Spindelüberlast','Stangenlader-Störung','Messtasterfehler'];
 
 const defaults=()=>({
-  version:3,
+  version:4,
   staff:{operator:0,setter:0,programmer:0,quality:0,master:0},
   upgrades:{highPressure:0,probe:0,toolMeasure:0,chuck:0,barfeed:0},
   shift:'early',
@@ -63,6 +63,7 @@ function normalize(raw){
 function game(){return window.CNC_GAME_BRIDGE||null}
 function totalStaff(){return Object.values(S.staff).reduce((a,b)=>a+(Number(b)||0),0)}
 function lifetime(){return Math.max(0,Number(readState()?.lifetime)||0)}
+function runRevenue(){return Math.max(0,Number(readState()?.runRevenue)||0)}
 function chainUnlocked(){return lifetime()>=5000}
 function maintenanceUnlocked(){return lifetime()>=15000}
 function equipmentUnlocked(){return lifetime()>=50000}
@@ -79,9 +80,9 @@ function maintenanceMultiplier(){
 }
 function productionMultiplier(){
   const st=S.staff;
-  const staffMult=1+st.operator*.03+st.setter*.05+st.programmer*.06+st.master*.08;
+  const staffMult=1+st.operator*.015+st.setter*.025+st.programmer*.03+st.master*.04;
   const shift=shiftUnlocked(S.shift)?SHIFTS[S.shift]:SHIFTS.early;
-  return Math.min(2.5,staffMult*shift.mult)*maintenanceMultiplier();
+  return Math.min(2.0,staffMult*shift.mult)*maintenanceMultiplier();
 }
 function qualityYield(){return Math.min(.995,.955+S.staff.quality*.005+S.staff.master*.003+S.upgrades.probe*.002)}
 function hireCost(id){const r=ROLES[id],lv=S.staff[id]||0;return r?Math.round(r.base*Math.pow(r.rate,lv)):Infinity}
@@ -90,8 +91,8 @@ function marketFactor(material){return Number(window.CNC_ONLINE?.marketMultiplie
 function rawUnitCost(material=S.material){return (MATERIALS[material]||6)*marketFactor(material)}
 function saleUnitValue(material=S.material){return rawUnitCost(material)*1.25}
 function maintenanceCost(type){
-  const scale=1+Math.min(7,Math.log10(1+lifetime()/10000))*0.85;
-  const base={tool:650,coolant:450,service:2400,repair:1100}[type]||500;
+  const scale=1+Math.min(30,Math.sqrt(runRevenue()/1000000));
+  const base={tool:1500,coolant:1000,service:7500,repair:4000}[type]||1000;
   return Math.round(base*scale);
 }
 function stageRates(){
@@ -230,7 +231,7 @@ function renderEquipment(){
     const left=Math.max(0,50000-lifetime());
     return `<div class="section">🧰 Maschinen-Tuning</div><div class="card item"><div class="name">Wird bei 50.000 € Gesamtumsatz freigeschaltet</div><div class="desc">Noch ${money(left)} bis Hochdruck-KSS, Messtaster, Werkzeugvermessung, Spanntechnik und Stangenlader-Upgrades.</div></div>`;
   }
-  return `<div class="section">🧰 Maschinen-Tuning</div><div class="notice"><b>Ausstattung statt Geldmultiplikator:</b> Tuning verbessert Verschleiß, Qualität und einzelne Prozessschritte. Es erhöht nicht pauschal alle Einnahmen.</div><div class="list">${Object.keys(UPGRADES).map(upgradeCard).join('')}</div>`;
+  return `<div class="section">🧰 Maschinen-Tuning</div><div class="notice"><b>Ausstattung statt Geldmultiplikator:</b> Tuning verbessert Verschleiß, Qualität und einzelne Prozessschritte. Höhere Stufen sind jetzt echte Investitionsentscheidungen.</div><div class="list">${Object.keys(UPGRADES).map(upgradeCard).join('')}</div>`;
 }
 function renderMaintenance(){
   if(!maintenanceUnlocked()){
@@ -239,7 +240,7 @@ function renderMaintenance(){
   }
   const m=S.maintenance,down=isDown(),left=Math.max(0,Math.ceil((m.downUntil-Date.now())/1000));
   const status=down?`<div class="notice"><b>⚠️ ${esc(m.incident||'Maschinenstörung')}</b><br>Stillstand noch ca. ${left} s. Du kannst die Störung sofort beheben oder die Reparaturzeit abwarten.</div>`:'';
-  return `<div class="section">🔧 Wartung & Werkzeuge</div>${status}<div class="grid"><div class="card stat"><div class="label">Werkzeugzustand</div><div class="value">${m.tool.toFixed(0)} %</div><div class="sub">Unter 60 % sinkt Leistung</div></div><div class="card stat"><div class="label">Kühlschmierstoff</div><div class="value">${m.coolant.toFixed(0)} %</div><div class="sub">Unter 40 % sinkt Leistung</div></div><div class="card stat"><div class="label">Maschinenzustand</div><div class="value">${m.health.toFixed(0)} %</div><div class="sub">${num(m.failures)} Störungen gesamt</div></div><div class="card stat"><div class="label">Verfügbarkeit</div><div class="value">×${maintenanceMultiplier().toFixed(2)}</div><div class="sub">wirkt nur bremsend, nie als Bonus</div></div></div><div class="list" style="margin-top:9px"><div class="card item"><div class="name">Verbrauch & Instandhaltung</div><div class="desc">Verschleiß läuft langsam mit der Produktion. Meister und passende Maschinenausstattung reduzieren ihn.</div><div class="opsActions"><button class="btn secondary" onclick="CNC_OPERATIONS.maintain('tool')">Werkzeug wechseln · ${money(maintenanceCost('tool'))}</button><button class="btn secondary" onclick="CNC_OPERATIONS.maintain('coolant')">KSS nachfüllen · ${money(maintenanceCost('coolant'))}</button><button class="btn secondary" onclick="CNC_OPERATIONS.maintain('service')">Wartung · ${money(maintenanceCost('service'))}</button>${down?`<button class="btn" onclick="CNC_OPERATIONS.maintain('repair')">Störung sofort beheben · ${money(maintenanceCost('repair'))}</button>`:''}</div></div></div>`;
+  return `<div class="section">🔧 Wartung & Werkzeuge</div>${status}<div class="grid"><div class="card stat"><div class="label">Werkzeugzustand</div><div class="value">${m.tool.toFixed(0)} %</div><div class="sub">Unter 60 % sinkt Leistung</div></div><div class="card stat"><div class="label">Kühlschmierstoff</div><div class="value">${m.coolant.toFixed(0)} %</div><div class="sub">Unter 40 % sinkt Leistung</div></div><div class="card stat"><div class="label">Maschinenzustand</div><div class="value">${m.health.toFixed(0)} %</div><div class="sub">${num(m.failures)} Störungen gesamt</div></div><div class="card stat"><div class="label">Verfügbarkeit</div><div class="value">×${maintenanceMultiplier().toFixed(2)}</div><div class="sub">wirkt nur bremsend, nie als Bonus</div></div></div><div class="list" style="margin-top:9px"><div class="card item"><div class="name">Verbrauch & Instandhaltung</div><div class="desc">Die Kosten wachsen jetzt mit der Größe des aktuellen Meisterlaufs. Kleine Betriebe bleiben günstig, große Fabriken haben spürbare Betriebskosten.</div><div class="opsActions"><button class="btn secondary" onclick="CNC_OPERATIONS.maintain('tool')">Werkzeug wechseln · ${money(maintenanceCost('tool'))}</button><button class="btn secondary" onclick="CNC_OPERATIONS.maintain('coolant')">KSS nachfüllen · ${money(maintenanceCost('coolant'))}</button><button class="btn secondary" onclick="CNC_OPERATIONS.maintain('service')">Wartung · ${money(maintenanceCost('service'))}</button>${down?`<button class="btn" onclick="CNC_OPERATIONS.maintain('repair')">Störung sofort beheben · ${money(maintenanceCost('repair'))}</button>`:''}</div></div></div>`;
 }
 function renderChain(){
   if(!chainUnlocked()){
@@ -253,7 +254,7 @@ function renderChain(){
 }
 function render(){
   const mult=productionMultiplier(),staff=totalStaff();
-  return `<div id="operationsSystems"><div class="notice"><b>👥 Betriebsführung aktiv.</b> Mitarbeiter und Schichten verstärken deine vorhandene Fertigung. Wartung kann die Leistung nur reduzieren; Maschinen-Tuning verbessert gezielt Prozesse statt pauschal den Geldfluss.</div><div class="grid"><div class="card stat"><div class="label">Mitarbeiter</div><div class="value">${staff}</div><div class="sub">5 Fachbereiche</div></div><div class="card stat"><div class="label">Produktionsfaktor</div><div class="value">×${mult.toFixed(2)}</div><div class="sub">${esc(SHIFTS[S.shift]?.name||'Frühschicht')}</div></div></div><div class="section">Schichtmodell</div><div class="opsShifts">${Object.keys(SHIFTS).map(shiftCard).join('')}</div><div class="section">Mitarbeiter</div><div class="list">${Object.keys(ROLES).map(staffCard).join('')}</div>${renderEquipment()}${renderMaintenance()}${renderChain()}</div>`;
+  return `<div id="operationsSystems"><div class="notice"><b>👥 Betriebsführung aktiv.</b> Mitarbeiter und Schichten verstärken die Fertigung kontrolliert. Vollausbau ersetzt keinen Maschinenpark; Wartung und Investitionen bleiben relevant.</div><div class="grid"><div class="card stat"><div class="label">Mitarbeiter</div><div class="value">${staff}</div><div class="sub">5 Fachbereiche</div></div><div class="card stat"><div class="label">Produktionsfaktor</div><div class="value">×${mult.toFixed(2)}</div><div class="sub">${esc(SHIFTS[S.shift]?.name||'Frühschicht')}</div></div></div><div class="section">Schichtmodell</div><div class="opsShifts">${Object.keys(SHIFTS).map(shiftCard).join('')}</div><div class="section">Mitarbeiter</div><div class="list">${Object.keys(ROLES).map(staffCard).join('')}</div>${renderEquipment()}${renderMaintenance()}${renderChain()}</div>`;
 }
 function start(){
   if(tickTimer)clearInterval(tickTimer);if(syncTimer)clearInterval(syncTimer);
