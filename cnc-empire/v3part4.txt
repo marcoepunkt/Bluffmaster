@@ -1,4 +1,4 @@
- syncOnline(force=false){
+async function syncOnline(force=false){
   if(!navigator.onLine)return;if(!force&&Date.now()-lastSync<12000)return;if(!await ensureOnline())return;lastSync=Date.now();
   try{const q='?friend_code=eq.'+encodeURIComponent(s.friendCode);const r=await fetch(API+q,{method:'PATCH',headers:headers({'Prefer':'return=minimal'}),body:JSON.stringify(publicStats())});if(!r.ok)console.warn('CNC online sync',r.status,await r.text())}catch(e){console.warn('CNC online sync',e)}
 }
@@ -22,4 +22,4 @@ function copyCode(){if(!s.friendCode)return toast('Online-Code wird erstellt');n
 function startDuel(){duel={score:0,left:20};render();const t=setInterval(()=>{if(!duel)return clearInterval(t);duel.left--;if(duel.left<=0){clearInterval(t);s.duelBest=Math.max(s.duelBest,duel.score);toast('Schicht beendet: '+duel.score+' Teile');duel=null;save();syncOnline(true)}render()},1000)}
 function offline(){const sec=Math.min(offlineHours()*3600,Math.max(0,(Date.now()-(s.last||Date.now()))/1000));const v=auto()*sec*.10;if(v>1){add(v,false);toast('Offline-Ertrag '+euro(v))}s.last=Date.now();save()}
 function stats(){return `<div class="grid"><div class="card stat"><div class="label">Kontostand</div><div class="value">${euro(s.money)}</div><div class="sub">Gesamt ${euro(s.lifetime)}</div></div><div class="card stat"><div class="label">Automatisch</div><div class="value">${euro(auto())}/s</div><div class="sub">★ ${availableStars()} frei · ×${prestigeMult().toFixed(2)} Prestige</div></div></div>`}
-function buySelector(){return `<div class="seg">${[['1','x1'],['10','x10'],['max','MAX']].map(([v,l])=>`<button class="${s.buyMode===v?'on':''}" onclick="G.setBuyMode('${v}')">${l}</
+function buySelector(){return `<div class="seg">${[['1','x1'],['10','x10'],['max','MAX']].map(([v,l])=>`<button class="${s.buyMode===v?'on':''}" onclick="G.setBuyMode('${v}')">${l}</button>`).join('')}</div>`}
