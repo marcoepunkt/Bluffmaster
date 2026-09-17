@@ -3,34 +3,34 @@ const K='cncEmpireMobileV2';
 const OLDK='cncEmpireMobileV1';
 const API='https://bssewblessvmhrytfojh.supabase.co/rest/v1/player_profiles';
 const APIKEY='sb_publishable_nnbYZe8ndtMaUkD5pEP-JQ_7Ff1c7d3';
-const BUY_RATE=1.18;
+const BUY_RATE=1.22;
 const machines=[
 ['manual','Konventionelle Drehbank',0,0,'🛠️'],
-['cnc','CNC-Drehmaschine',450,4,'⚙️'],
-['bar','Stangenlader-Zelle',3500,24,'🔩'],
-['turnmill','Dreh-Fräszentrum',18000,110,'🧰'],
-['robot','Roboterzelle',95000,520,'🤖'],
-['lights','Lights-Out Fertigung',550000,2900,'🏭'],
-['swiss','Langdrehautomat',3500000,17000,'🧷'],
-['grind','Schleifzelle',22000000,100000,'💎'],
-['fiveaxis','5-Achs-Bearbeitungszentrum',150000000,650000,'🛰️'],
-['fms','Flexibles Fertigungssystem',1100000000,5000000,'🔁'],
-['smart','Autonome Smart Factory',8500000000,42000000,'🧠']
+['cnc','CNC-Drehmaschine',900,3,'⚙️'],
+['bar','Stangenlader-Zelle',9000,14,'🔩'],
+['turnmill','Dreh-Fräszentrum',65000,60,'🧰'],
+['robot','Roboterzelle',450000,280,'🤖'],
+['lights','Lights-Out Fertigung',3200000,1400,'🏭'],
+['swiss','Langdrehautomat',22000000,8000,'🧷'],
+['grind','Schleifzelle',150000000,45000,'💎'],
+['fiveaxis','5-Achs-Bearbeitungszentrum',1200000000,280000,'🛰️'],
+['fms','Flexibles Fertigungssystem',10000000000,2000000,'🔁'],
+['smart','Autonome Smart Factory',90000000000,15000000,'🧠']
 ];
 const starUpgrades={
-  process:{name:'Prozessoptimierung',icon:'⚙️',desc:'+25 % automatische Produktion je Stufe',max:10,base:1,step:1},
-  tooling:{name:'Werkzeugtechnologie',icon:'🛠️',desc:'+30 % Erlös pro manuellem Teil je Stufe',max:8,base:1,step:1},
-  sales:{name:'Vertrieb & Kalkulation',icon:'📈',desc:'+20 % Auftragsprämie je Stufe',max:8,base:2,step:1},
-  night:{name:'Nachtschicht',icon:'🌙',desc:'+2 Stunden Offline-Produktion je Stufe',max:8,base:1,step:1},
+  process:{name:'Prozessoptimierung',icon:'⚙️',desc:'+5 % automatische Produktion je Stufe',max:10,base:1,step:1},
+  tooling:{name:'Werkzeugtechnologie',icon:'🛠️',desc:'+5 % Erlös pro manuellem Teil je Stufe',max:8,base:1,step:1},
+  sales:{name:'Vertrieb & Kalkulation',icon:'📈',desc:'+4 % Auftragsprämie je Stufe',max:8,base:2,step:1},
+  night:{name:'Nachtschicht',icon:'🌙',desc:'+30 Minuten Offline-Produktion je Stufe',max:8,base:1,step:1},
   planning:{name:'Disposition',icon:'📋',desc:'+1 Angebot in der Auftragsbörse je Stufe',max:2,base:3,step:2}
 };
 const materials=['1.4404','42CrMo4','Al 7075','1.4301','POM-C','1.4122','1.4305','C55E','Al 6082','1.4021','PE-HD','PET'];
 const jobNames=['Präzisionswellen','Flanschserie','Hydraulikhülsen','Distanzringe','Spindelmuttern','Ventilsitze','Führungsbuchsen','Antriebszapfen','Sensorhülsen','Kupplungsnaben','Düsenkörper','Lagerdeckel','Gewinderinge','Kolbenstangen','Adapterflansche','Spannhülsen'];
 const orderTypes=[
-  {id:'express',name:'Eilauftrag',icon:'⚡',min:18,max:35,reward:.72,base:25,className:'express'},
-  {id:'series',name:'Serienauftrag',icon:'📦',min:50,max:90,reward:.9,base:60,className:'series'},
-  {id:'bulk',name:'Großserie',icon:'🏭',min:130,max:220,reward:1.18,base:150,className:'bulk'},
-  {id:'proto',name:'Prototyp',icon:'🧪',min:10,max:22,reward:1.35,base:12,className:'proto'}
+  {id:'express',name:'Eilauftrag',icon:'⚡',min:45,max:70,reward:.35,base:40,className:'express'},
+  {id:'series',name:'Serienauftrag',icon:'📦',min:120,max:180,reward:.45,base:120,className:'series'},
+  {id:'bulk',name:'Großserie',icon:'🏭',min:300,max:480,reward:.60,base:300,className:'bulk'},
+  {id:'proto',name:'Prototyp',icon:'🧪',min:30,max:50,reward:.75,base:20,className:'proto'}
 ];
 function weekKey(){
   const d=new Date();
@@ -58,4 +58,4 @@ if(!Array.isArray(s.offers))s.offers=[];
 if(s.runRevenue==null)s.runRevenue=s.run===0?(s.lifetime||120):120;
 if(s.starsSpent==null)s.starsSpent=Object.entries(s.starShop).reduce((sum,[id,lv])=>sum+spentFor(id,Number(lv)||0),0);
 if(!['1','10','max'].includes(String(s.buyMode)))s.buyMode='1';
-if(s.weekKey!==we
+if(s.weekKey!==weekKey()){s.week=0;s.weekKey=weekKey()}
