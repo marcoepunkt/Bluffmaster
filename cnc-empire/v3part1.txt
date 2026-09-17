@@ -53,7 +53,7 @@ let s={...fresh(),...raw};
 s.m={...fresh().m,...(raw.m||{})};
 s.starShop={...fresh().starShop,...(raw.starShop||{})};
 if(!Array.isArray(s.friendCodes))s.friendCodes=[];
-if(!Array.isArray(s.friends))s.friendCodes=[];
+if(!Array.isArray(s.friends))s.friends=[];
 if(!Array.isArray(s.offers))s.offers=[];
 if(s.runRevenue==null)s.runRevenue=s.run===0?(s.lifetime||120):120;
 if(s.starsSpent==null)s.starsSpent=Object.entries(s.starShop).reduce((sum,[id,lv])=>sum+spentFor(id,Number(lv)||0),0);
