@@ -1,0 +1,73 @@
+(()=>{
+  const GAME_KEYS=['cncEmpireMobileV2','cncEmpireMobileV1'];
+  const cleanName=(value,max=30)=>String(value??'')
+    .replace(/[<>]/g,'')
+    .replace(/[\u0000-\u001F\u007F]/g,'')
+    .trim()
+    .slice(0,max);
+
+  function sanitizeState(state){
+    if(!state||typeof state!=='object')return state;
+    if(typeof state.name==='string')state.name=cleanName(state.name,22)||'Meine Werkstatt';
+    if(Array.isArray(state.friends)){
+      state.friends=state.friends.map(friend=>{
+        if(!friend||typeof friend!=='object')return friend;
+        return {...friend,n:cleanName(friend.n,30)||'Werkstatt'};
+      });
+    }
+    return state;
+  }
+
+  for(const key of GAME_KEYS){
+    try{
+      const raw=localStorage.getItem(key);
+      if(!raw)continue;
+      const state=sanitizeState(JSON.parse(raw));
+      localStorage.setItem(key,JSON.stringify(state));
+    }catch{}
+  }
+
+  document.addEventListener('input',event=>{
+    const el=event.target;
+    if(el&&el.id==='nm')el.value=cleanName(el.value,22);
+  },true);
+
+  const nativeFetch=window.fetch.bind(window);
+  window.fetch=async(input,init={})=>{
+    const url=typeof input==='string'?input:(input?.url||'');
+    const isProfileApi=url.includes('/rest/v1/player_profiles_s2');
+    let nextInit=init;
+
+    if(isProfileApi&&typeof init?.body==='string'){
+      try{
+        const body=JSON.parse(init.body);
+        if(body&&typeof body==='object'&&typeof body.display_name==='string'){
+          body.display_name=cleanName(body.display_name,22)||'Meine Werkstatt';
+          nextInit={...init,body:JSON.stringify(body)};
+        }
+      }catch{}
+    }
+
+    const response=await nativeFetch(input,nextInit);
+    const method=String(nextInit?.method||'GET').toUpperCase();
+    if(!isProfileApi||method!=='GET'||!response.ok)return response;
+
+    try{
+      const data=await response.clone().json();
+      const sanitizeRow=row=>row&&typeof row==='object'
+        ?{...row,display_name:cleanName(row.display_name,30)||'Werkstatt'}
+        :row;
+      const safe=Array.isArray(data)?data.map(sanitizeRow):sanitizeRow(data);
+      const headers=new Headers(response.headers);
+      headers.delete('content-length');
+      headers.delete('content-encoding');
+      return new Response(JSON.stringify(safe),{
+        status:response.status,
+        statusText:response.statusText,
+        headers
+      });
+    }catch{
+      return response;
+    }
+  };
+})();
