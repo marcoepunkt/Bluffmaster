@@ -18,6 +18,28 @@
     return state;
   }
 
+  const isEditable=el=>!!el&&(
+    el.matches?.('input,textarea,select')||el.isContentEditable
+  );
+  const refreshInputFocus=()=>{
+    window.CNC_INPUT_FOCUS=isEditable(document.activeElement);
+  };
+  window.CNC_INPUT_FOCUS=false;
+  document.addEventListener('focusin',refreshInputFocus,true);
+  document.addEventListener('focusout',()=>queueMicrotask(refreshInputFocus),true);
+
+  const innerHTMLDescriptor=Object.getOwnPropertyDescriptor(Element.prototype,'innerHTML');
+  if(innerHTMLDescriptor?.get&&innerHTMLDescriptor?.set&&innerHTMLDescriptor.configurable){
+    Object.defineProperty(Element.prototype,'innerHTML',{
+      ...innerHTMLDescriptor,
+      set(value){
+        const active=document.activeElement;
+        if(this.id==='root'&&isEditable(active)&&this.contains(active))return;
+        return innerHTMLDescriptor.set.call(this,value);
+      }
+    });
+  }
+
   const nativeSetItem=Storage.prototype.setItem;
   Storage.prototype.setItem=function(key,value){
     if(GAME_KEYS.includes(String(key))){
