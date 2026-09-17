@@ -28,7 +28,7 @@ let money=12345.67;
 window.CNC_GAME_BRIDGE={getState:()=>({money})};
 new Function(script)();
 if(elements.get('persistentBalanceBar').hidden)fail('Balance-Bar bleibt trotz geladenem Spielstand versteckt');
-if(!elements.get('persistentBalanceValue').textContent.includes('12.345'))fail('Balance-Bar zeigt den Kontostand nicht korrekt an');
+if(!elements.get('persistentBalanceValue').textContent.includes('12.346'))fail('Balance-Bar zeigt den gerundeten Kontostand nicht korrekt an');
 money=42;
 window.CNC_BALANCE_BAR.update();
 if(!elements.get('persistentBalanceValue').textContent.includes('42'))fail('Balance-Bar aktualisiert geänderten Kontostand nicht');
