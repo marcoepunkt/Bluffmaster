@@ -38,7 +38,7 @@ function hideAuth(){$('authGate').hidden=true;$('nav').style.display='';showAcco
 function showAuth(){$('authGate').hidden=false;$('nav').style.display='none';$('accountBar').hidden=true;$('root').innerHTML=''}
 
 async function initOnlineSystems(){if(onlineSystems)return onlineSystems;const mod=await import('./online-systems-v1.js?v=1');onlineSystems=await mod.initCncOnline({supabase,user:session.user,readState:()=>readLocalState()?.state||null});return onlineSystems}
-async function initOperationsSystems(){if(operationsSystems)return operationsSystems;const mod=await import('./operations-v1.js?v=8');operationsSystems=await mod.initCncOperations({supabase,user:session.user,readState:()=>readLocalState()?.state||null});return operationsSystems}
+async function initOperationsSystems(){if(operationsSystems)return operationsSystems;const mod=await import('./operations-v1.js?v=9');operationsSystems=await mod.initCncOperations({supabase,user:session.user,readState:()=>readLocalState()?.state||null});return operationsSystems}
 function installGameHooks(){if(!window.G||window.G.__onlineHooks)return;const originalClaim=window.G.claim;window.G.claim=()=>{const order=readLocalState()?.state?.order;const completed=order&&Number(order.done)>=Number(order.q);originalClaim();if(completed&&order)window.CNC_ONLINE?.recordOrderClaim?.({...order})};window.G.__onlineHooks=true}
 async function loadGame(){
   if(gameLoaded)return;
