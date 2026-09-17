@@ -61,6 +61,72 @@ const hasHardBalance=auth.includes('function hardBalance(')||auth.includes('hard
 if(hasHardBalance)fail('Runtime-hardBalance-Patching ist noch aktiv');
 ok('Runtime-hardBalance-Patching entfernt');
 
+function installBrowserStubs(){
+  const elements=new Map();
+  const makeElement=id=>({id,innerHTML:'',textContent:'',className:'',value:'',hidden:false,disabled:false,dataset:{},style:{},addEventListener(){},appendChild(){},remove(){},focus(){}});
+  const getElement=id=>{if(!elements.has(id))elements.set(id,makeElement(id));return elements.get(id)};
+  const store=new Map();
+  Object.defineProperty(globalThis,'window',{value:globalThis,configurable:true,writable:true});
+  Object.defineProperty(globalThis,'navigator',{value:{onLine:false,clipboard:{writeText:async()=>{}}},configurable:true,writable:true});
+  Object.defineProperty(globalThis,'localStorage',{value:{getItem:k=>store.has(k)?store.get(k):null,setItem:(k,v)=>store.set(k,String(v)),removeItem:k=>store.delete(k),clear:()=>store.clear()},configurable:true,writable:true});
+  Object.defineProperty(globalThis,'document',{value:{getElementById:getElement,createElement:()=>makeElement(''),body:{appendChild(){}},addEventListener(){},querySelector(){return null}},configurable:true,writable:true});
+  globalThis.addEventListener=()=>{};
+  globalThis.alert=()=>{};
+  globalThis.confirm=()=>true;
+  globalThis.location={reload(){}};
+  globalThis.setInterval=()=>1;
+  globalThis.clearInterval=()=>{};
+  globalThis.setTimeout=fn=>{if(typeof fn==='function')fn();return 1};
+  globalThis.clearTimeout=()=>{};
+  return {getElement,store};
+}
+
+async function runRuntimeSmoke(){
+  const env=installBrowserStubs();
+  try{new Function(game)()}catch(e){fail(`Spielkern startet nicht: ${e.stack||e.message}`)}
+  await Promise.resolve();await Promise.resolve();
+  if(!window.G)fail('window.G wurde beim Start nicht erzeugt');
+  if(!window.CNC_GAME_BRIDGE)fail('CNC_GAME_BRIDGE wurde beim Start nicht erzeugt');
+  if(!env.getElement('root').innerHTML.includes('CNC EMPIRE'))fail('Werkstatt-UI wurde nicht gerendert');
+  if(!env.getElement('nav').innerHTML.includes('Betrieb')||!env.getElement('nav').innerHTML.includes('Online'))fail('Erweiterte Navigation wurde nicht gerendert');
+  ok('Spielkern startet und rendert die Hauptnavigation');
+
+  let state=window.CNC_GAME_BRIDGE.getState();
+  const cashBefore=state.money;
+  window.G.tap();
+  state=window.CNC_GAME_BRIDGE.getState();
+  if(!(state.money>cashBefore))fail('Manuelles Fertigen erhöht den Kontostand nicht');
+  ok('Manuelles Fertigen funktioniert');
+
+  state.money=10000;
+  const beforeCnc=state.m.cnc;
+  window.G.buy('cnc');
+  state=window.CNC_GAME_BRIDGE.getState();
+  if(state.m.cnc!==beforeCnc+1)fail('CNC-Maschine konnte im Runtime-Test nicht gekauft werden');
+  ok('Maschinenkauf funktioniert');
+
+  window.G.orderNew();
+  state=window.CNC_GAME_BRIDGE.getState();
+  if(!Array.isArray(state.offers)||state.offers.length<3)fail('Auftragsbörse erzeugt keine Angebote');
+  window.G.acceptOffer(0);
+  state=window.CNC_GAME_BRIDGE.getState();
+  if(!state.order)fail('Auftrag konnte nicht angenommen werden');
+  const doneBefore=state.order.done;
+  window.G.tap();
+  state=window.CNC_GAME_BRIDGE.getState();
+  if(!(state.order.done>doneBefore))fail('Aktiver Klick erhöht den Auftragsfortschritt nicht');
+  ok('Auftrag annehmen + aktiver Fortschritt funktionieren');
+
+  state.runRevenue=10000000;
+  const prestigeBefore=state.prestige;
+  const runBefore=state.run;
+  window.G.prestige();
+  state=window.CNC_GAME_BRIDGE.getState();
+  if(state.prestige!==prestigeBefore+1||state.run!==runBefore+1)fail('Erster Prestige-Reset liefert nicht exakt einen Stern und einen neuen Lauf');
+  ok('Prestige-Reset funktioniert mit neuer Kurve');
+}
+await runRuntimeSmoke();
+
 const operations=await fs.readFile(path.join(root,'operations-v1.js'),'utf8');
 const operationsCompile=operations.replace(/\bexport\s+(?=async function|function|const|let|class)/g,'').replace(/export\s*\{[^}]*\};?/g,'');
 try{new Function(operationsCompile);ok('Betriebsmodul ist syntaktisch gültig')}catch(e){fail(`Betriebsmodul-Syntaxfehler: ${e.message}`)}
