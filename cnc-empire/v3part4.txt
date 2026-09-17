@@ -7,15 +7,15 @@ async function loadFriends(showToast=false){
   const codes=[...new Set(s.friendCodes.map(c=>String(c).toUpperCase().replace(/[^A-Z0-9]/g,'')).filter(Boolean))];
   if(!codes.length){s.friends=[];save();render();return}
   try{
-    const select='friend_code,display_name,week_score,prestige,duel_best,lifetime,updated_at';
+    const select='friend_code,display_name,week_score,week_key,prestige,duel_best,lifetime,updated_at';
     const q='?select='+select+'&friend_code=in.('+codes.join(',')+')';const r=await fetch(API+q,{headers:headers()});if(!r.ok)throw new Error(await r.text());
-    const rows=await r.json();s.friends=rows.map(p=>({code:p.friend_code,n:p.display_name,w:Number(p.week_score)||0,p:Number(p.prestige)||0,d:Number(p.duel_best)||0,l:Number(p.lifetime)||0,u:p.updated_at}));save();render();if(showToast)toast('Freundesliste aktualisiert')
+    const rows=await r.json();s.friends=rows.map(p=>({code:p.friend_code,n:p.display_name,w:p.week_key===s.weekKey?(Number(p.week_score)||0):0,wk:p.week_key,p:Number(p.prestige)||0,d:Number(p.duel_best)||0,l:Number(p.lifetime)||0,u:p.updated_at}));save();render();if(showToast)toast('Freundesliste aktualisiert')
   }catch(e){console.warn('CNC friend load',e);if(showToast)toast('Online-Abgleich fehlgeschlagen')}
 }
 async function addFriend(){
   const el=document.getElementById('friendcode');const code=(el?.value||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
   if(code.length!==8)return toast('Freundescode hat 8 Zeichen');if(code===s.friendCode)return toast('Das ist dein eigener Code');if(s.friendCodes.includes(code))return toast('Freund ist schon hinzugefügt');
-  try{const q='?select=friend_code,display_name,week_score,prestige,duel_best,lifetime,updated_at&friend_code=eq.'+encodeURIComponent(code);const r=await fetch(API+q,{headers:headers()});const rows=r.ok?await r.json():[];if(!rows.length)return toast('Freundescode nicht gefunden');s.friendCodes.push(code);save();toast(rows[0].display_name+' hinzugefügt');await loadFriends()}catch{toast('Keine Online-Verbindung')}
+  try{const q='?select=friend_code,display_name,week_score,week_key,prestige,duel_best,lifetime,updated_at&friend_code=eq.'+encodeURIComponent(code);const r=await fetch(API+q,{headers:headers()});const rows=r.ok?await r.json():[];if(!rows.length)return toast('Freundescode nicht gefunden');s.friendCodes.push(code);save();toast(rows[0].display_name+' hinzugefügt');await loadFriends()}catch{toast('Keine Online-Verbindung')}
 }
 function removeFriend(code){s.friendCodes=s.friendCodes.filter(c=>c!==code);s.friends=s.friends.filter(f=>f.code!==code);save();render()}
 function copyCode(){if(!s.friendCode)return toast('Online-Code wird erstellt');navigator.clipboard?.writeText(s.friendCode);toast('Freundescode kopiert')}
