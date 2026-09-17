@@ -1,4 +1,3 @@
-s.order={...o,done:0,acceptedAt:Date.now()};s.offers=[];save();render();toast(o.typeName+' angenommen')}
 function rerollOffers(){if(s.order)return toast('Laufender Auftrag aktiv');ensureOffers(true);render();toast('Auftragsbörse aktualisiert')}
 function orderNew(){ensureOffers(true);render()}
 function claim(){
@@ -44,4 +43,3 @@ async function ensureOnline(){
   }catch(e){console.warn('CNC online register',e)}
   onlineBusy=false;return false
 }
-async function
