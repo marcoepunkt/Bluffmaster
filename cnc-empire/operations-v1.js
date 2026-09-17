@@ -59,7 +59,7 @@ function shiftUnlocked(id){const x=SHIFTS[id];return !!x&&lifetime()>=x.need&&to
 function isDown(){return maintenanceUnlocked()&&Number(S.maintenance.downUntil)>Date.now()}
 function maintenanceMultiplier(){
   if(!maintenanceUnlocked())return 1;
-  if(isDown())return 0;
+  if(isDown())return 1e-9;
   const m=S.maintenance;
   const tool=m.tool>=60?1:.75+(m.tool/60)*.25;
   const coolant=m.coolant>=40?1:.85+(m.coolant/40)*.15;
