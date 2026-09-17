@@ -57,9 +57,8 @@ for(const marker of ['player_saves_s2','GAME_PART_VERSION',"new Function(parts.j
   if(!auth.includes(marker))fail(`Cloud-Loader-Invariante fehlt: ${marker}`);
   ok(`Cloud-Invariante ${marker}`);
 }
-if(auth.includes('function hardBalance(')||auth.includes('hardBalance(parts.join'))){
-  fail('Runtime-hardBalance-Patching ist noch aktiv');
-}
+const hasHardBalance=auth.includes('function hardBalance(')||auth.includes('hardBalance(parts.join');
+if(hasHardBalance)fail('Runtime-hardBalance-Patching ist noch aktiv');
 ok('Runtime-hardBalance-Patching entfernt');
 
 const operations=await fs.readFile(path.join(root,'operations-v1.js'),'utf8');
