@@ -48,14 +48,14 @@ for(const marker of forbiddenGame){if(game.includes(marker))fail(`Alte Balance-L
 const index=await fs.readFile(path.join(root,'index.html'),'utf8');
 if(index.includes('active-production-v1.js'))fail('Veralteter Active-Production-Patch ist wieder eingebunden');
 ok('Kein alter Active-Production-Patch geladen');
-if(!index.includes('auth-cloud-v3.js'))fail('Cloud-Loader fehlt in index.html');
-ok('Cloud-Loader eingebunden');
+if(!index.includes('auth-cloud-v3.js?v=15'))fail('Aktueller Cloud-Loader fehlt in index.html');
+ok('Aktueller Cloud-Loader eingebunden');
 if(!index.includes('clan-events-bootstrap-v1.js?v=5'))fail('Aktueller Firmen-Cup-Bootstrap fehlt');
 ok('Aktueller Firmen-Cup-Bootstrap eingebunden');
 
 const auth=await fs.readFile(path.join(root,'auth-cloud-v3.js'),'utf8');
 try{new Function(auth);ok('Cloud-Loader ist syntaktisch gültig')}catch(e){fail(`Cloud-Loader-Syntaxfehler: ${e.message}`)}
-for(const marker of ['player_saves_s2','GAME_PART_VERSION',"new Function(parts.join(''))"]){
+for(const marker of ['player_saves_s2','GAME_PART_VERSION',"new Function(parts.join(''))","operations-v1.js?v=9"]){
   if(!auth.includes(marker))fail(`Cloud-Loader-Invariante fehlt: ${marker}`);
   ok(`Cloud-Invariante ${marker}`);
 }
@@ -132,9 +132,9 @@ await runRuntimeSmoke();
 const operations=await fs.readFile(path.join(root,'operations-v1.js'),'utf8');
 const operationsCompile=operations.replace(/\bexport\s+(?=async function|function|const|let|class)/g,'').replace(/export\s*\{[^}]*\};?/g,'');
 try{new Function(operationsCompile);ok('Betriebsmodul ist syntaktisch gültig')}catch(e){fail(`Betriebsmodul-Syntaxfehler: ${e.message}`)}
-for(const marker of ['function dashboardData()','function bottleneckData()','function renderDashboard()','Engpassanalyse','dashboardData,stageRates,qualityYield']){
-  if(!operations.includes(marker))fail(`Dashboard-Invariante fehlt: ${marker}`);
-  ok(`Dashboard-Invariante ${marker}`);
+for(const marker of ['function dashboardData()','function bottleneckData()','function renderDashboard()','Engpassanalyse','dashboardData,stageRates,qualityYield','const coreAlreadyRenders=','Date.now()-lastUiRender>=2000']){
+  if(!operations.includes(marker))fail(`Dashboard/Performance-Invariante fehlt: ${marker}`);
+  ok(`Dashboard/Performance-Invariante ${marker}`);
 }
 
 const clan=await fs.readFile(path.join(root,'clan-events-v1.js'),'utf8');
