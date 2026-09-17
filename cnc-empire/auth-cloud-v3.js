@@ -41,19 +41,23 @@ function hardBalance(code){
     ["['fiveaxis','5-Achs-Bearbeitungszentrum',150000000,650000,'🛰️']","['fiveaxis','5-Achs-Bearbeitungszentrum',1200000000,280000,'🛰️']"],
     ["['fms','Flexibles Fertigungssystem',1100000000,5000000,'🔁']","['fms','Flexibles Fertigungssystem',10000000000,2000000,'🔁']"],
     ["['smart','Autonome Smart Factory',8500000000,42000000,'🧠']","['smart','Autonome Smart Factory',90000000000,15000000,'🧠']"],
-    ["desc:'+25 % automatische Produktion je Stufe'","desc:'+12 % automatische Produktion je Stufe'"],
-    ["desc:'+30 % Erlös pro manuellem Teil je Stufe'","desc:'+15 % Erlös pro manuellem Teil je Stufe'"],
-    ["desc:'+20 % Auftragsprämie je Stufe'","desc:'+10 % Auftragsprämie je Stufe'"],
-    ["desc:'+2 Stunden Offline-Produktion je Stufe'","desc:'+1 Stunde Offline-Produktion je Stufe'"],
+    ["desc:'+25 % automatische Produktion je Stufe'","desc:'+5 % automatische Produktion je Stufe'"],
+    ["desc:'+30 % Erlös pro manuellem Teil je Stufe'","desc:'+5 % Erlös pro manuellem Teil je Stufe'"],
+    ["desc:'+20 % Auftragsprämie je Stufe'","desc:'+4 % Auftragsprämie je Stufe'"],
+    ["desc:'+2 Stunden Offline-Produktion je Stufe'","desc:'+30 Minuten Offline-Produktion je Stufe'"],
     ["{id:'express',name:'Eilauftrag',icon:'⚡',min:18,max:35,reward:.72,base:25,className:'express'}","{id:'express',name:'Eilauftrag',icon:'⚡',min:45,max:70,reward:.55,base:40,className:'express'}"],
     ["{id:'series',name:'Serienauftrag',icon:'📦',min:50,max:90,reward:.9,base:60,className:'series'}","{id:'series',name:'Serienauftrag',icon:'📦',min:120,max:180,reward:.72,base:120,className:'series'}"],
     ["{id:'bulk',name:'Großserie',icon:'🏭',min:130,max:220,reward:1.18,base:150,className:'bulk'}","{id:'bulk',name:'Großserie',icon:'🏭',min:300,max:480,reward:.92,base:300,className:'bulk'}"],
     ["{id:'proto',name:'Prototyp',icon:'🧪',min:10,max:22,reward:1.35,base:12,className:'proto'}","{id:'proto',name:'Prototyp',icon:'🧪',min:30,max:50,reward:1.05,base:20,className:'proto'}"],
-    ["function prestigeMult(){return 1+s.prestige*.12}","function prestigeMult(){return 1+s.prestige*.06}"],
-    ["function autoMult(){return prestigeMult()*(1+s.starShop.process*.25)}","function autoMult(){return prestigeMult()*(1+s.starShop.process*.12)}"],
-    ["function tapMult(){return prestigeMult()*(1+s.starShop.tooling*.30)}","function tapMult(){return prestigeMult()*(1+s.starShop.tooling*.15)}"],
-    ["function contractMult(){return 1+s.starShop.sales*.20}","function contractMult(){return 1+s.starShop.sales*.10}"],
-    ["function offlineHours(){return Math.min(24,8+s.starShop.night*2)}","function offlineHours(){return Math.min(12,4+s.starShop.night)}"],
+    ["function prestigeMult(){return 1+s.prestige*.12}","function prestigeRequirement(){return Math.round(10000000*Math.pow(1.75,s.run||0))}\nfunction prestigeGain(){const req=prestigeRequirement();if(s.runRevenue<req)return 0;return Math.max(1,1+Math.floor(Math.log(s.runRevenue/req)/Math.log(4)))}\nfunction prestigeMult(){return 1+Math.min(.60,s.prestige*.03)}"],
+    ["function autoMult(){return prestigeMult()*(1+s.starShop.process*.25)}","function autoMult(){return prestigeMult()*(1+s.starShop.process*.05)}"],
+    ["function tapMult(){return prestigeMult()*(1+s.starShop.tooling*.30)}","function tapMult(){return prestigeMult()*(1+s.starShop.tooling*.05)}"],
+    ["function contractMult(){return 1+s.starShop.sales*.20}","function contractMult(){return 1+s.starShop.sales*.04}"],
+    ["function offlineHours(){return Math.min(24,8+s.starShop.night*2)}","function offlineHours(){return Math.min(8,4+s.starShop.night*.5)}"],
+    ["if(s.runRevenue<250000)return toast('Noch '+euro(250000-s.runRevenue)+' bis Meisterprestige');","const req=prestigeRequirement();if(s.runRevenue<req)return toast('Noch '+euro(req-s.runRevenue)+' bis Meisterprestige');"],
+    ["const gain=Math.max(1,Math.floor(Math.sqrt(s.runRevenue/250000)));","const gain=prestigeGain();"],
+    ["const best=[...machines].reverse().find(x=>s.m[x[0]]>0)||machines[0];const remain=Math.max(0,250000-s.runRevenue);","const best=[...machines].reverse().find(x=>s.m[x[0]]>0)||machines[0];const remain=Math.max(0,prestigeRequirement()-s.runRevenue);"],
+    ["${remain?euro(remain)+' fehlen':'bereit für Prestige'} · ${s.prestige} Sterne insgesamt","${remain?euro(remain)+' fehlen':'bereit für Prestige'} · ${s.prestige} Sterne insgesamt · ${prestigeGain()} neue Sterne bei Reset"],
     ["function auto(){return machines.reduce((a,x)=>a+s.m[x[0]]*x[3],0)*autoMult()}","function auto(){return machines.reduce((a,x)=>a+s.m[x[0]]*x[3],0)*autoMult()*(window.CNC_OPERATIONS?.productionMultiplier?.()||1)}"],
     ["const pay=Math.max(100,Math.round((productionValue*t.reward+q*click()*.35)*contractMult()*streakBonus));","const pay=Math.max(100,Math.round((productionValue*t.reward+q*click()*.35)*contractMult()*streakBonus*(window.CNC_ONLINE?.marketMultiplier?.(mat)||1)*(window.CNC_ONLINE?.communityBonus?.()||1)));"],
     ["${o.mat} · ${num(o.q)} Teile · ca. ${o.duration||'?'} s Produktionszeit","${o.mat} · ${num(o.q)} Teile · Markt ×${(window.CNC_ONLINE?.marketMultiplier?.(o.mat)||1).toFixed(2)} · ca. ${o.duration||'?'} s"],
@@ -63,7 +67,6 @@ function hardBalance(code){
     ["offline();render();ensureOnline()","window.CNC_GAME_BRIDGE={getState:()=>s,partRate:()=>partRate(),spend:v=>{v=Math.max(0,Number(v)||0);if(s.money<v)return false;s.money-=v;save();return true},earn:v=>{v=Math.max(0,Number(v)||0);if(v>0){add(v);save()}},save:()=>save(),render:()=>render()};offline();render();ensureOnline()"]
   ];
   for(const [from,to] of replacements)code=code.replace(from,to);
-  code=code.replaceAll('250000','2000000');
   return code;
 }
 async function initOnlineSystems(){if(onlineSystems)return onlineSystems;const mod=await import('./online-systems-v1.js?v=1');onlineSystems=await mod.initCncOnline({supabase,user:session.user,readState:()=>readLocalState()?.state||null});return onlineSystems}
