@@ -40,7 +40,7 @@ function decorateOffer(offer){
   const customerId=chooseCustomer(offer.mat),c=CUSTOMERS[customerId],rep=s.customerRep[customerId]||0,t=tier(rep);
   const oldQ=Math.max(1,Number(offer.q)||1),newQ=Math.max(oldQ,Math.round(oldQ*t.qty));
   const quantityFactor=newQ/oldQ;
-  return {...offer,customerId,customer:c.name,customerIcon:c.icon,customerTier:t.name,customerRep:rep,q:newQ,pay:Math.max(100,Math.round((Number(offer.pay)||100)*quantityFactor*(1+t.premium)))};
+  return {...offer,name:`${c.icon} ${c.name} · ${offer.name}`,customerId,customer:c.name,customerIcon:c.icon,customerTier:t.name,customerRep:rep,q:newQ,pay:Math.max(100,Math.round((Number(offer.pay)||100)*quantityFactor*(1+t.premium)))};
 }
 function recordOrderClaim(order){
   if(!order?.customerId||!CUSTOMERS[order.customerId])return;
@@ -65,5 +65,12 @@ function render(){
   ensureState();
   return `<div class="section">🤝 Großkunden & Ruf</div><div class="notice"><b>Lieferantenstatus:</b> Pünktlich abgeschlossene Kundenaufträge geben mehr Ruf. Höherer Ruf bringt vor allem größere Serien; der maximale Preisaufschlag bleibt bei +6 %.</div><div class="list">${Object.keys(CUSTOMERS).map(card).join('')}</div>`;
 }
+function attachPanel(){
+  const ops=document.getElementById('operationsSystems');if(!ops||document.getElementById('customerReputationPanel'))return;
+  const panel=document.createElement('div');panel.id='customerReputationPanel';panel.innerHTML=render();ops.insertAdjacentElement('afterend',panel);
+}
+const observer=new MutationObserver(()=>attachPanel());
+observer.observe(document.documentElement,{childList:true,subtree:true});
+window.addEventListener('DOMContentLoaded',attachPanel);
 window.CNC_CUSTOMERS={decorateOffer,recordOrderClaim,render,unlocked};
 export {decorateOffer,recordOrderClaim,render};
