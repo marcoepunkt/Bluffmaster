@@ -109,6 +109,40 @@ function stageRates(){
     ship:base*(.65+S.staff.operator*.035+S.staff.master*.025)*flowTune
   };
 }
+function customerKpis(){
+  const stats=readState()?.customerStats||{};let completed=0,onTime=0,complaints=0;
+  for(const x of Object.values(stats)){completed+=Math.max(0,Number(x?.completed)||0);onTime+=Math.max(0,Number(x?.onTime)||0);complaints+=Math.max(0,Number(x?.complaints)||0)}
+  return {completed,onTime,complaints,deliveryRate:completed?onTime/completed:null,complaintRate:completed?complaints/completed:null};
+}
+function bottleneckData(){
+  if(!chainUnlocked())return {id:'locked',name:'Noch gesperrt',rate:0,action:'Produktionskette bei 5.000 € Gesamtumsatz freischalten.'};
+  if(isDown())return {id:'maintenance',name:'Maschinenstillstand',rate:0,action:'Störung beheben oder Wartungszustand wiederherstellen.'};
+  const r=stageRates();
+  const labels={saw:'Sägen',turn:'Drehen',inspect:'Prüfen',ship:'Versand'};
+  const actions={
+    saw:'Maschinenbediener einstellen oder Stangenlader-Optimierung ausbauen.',
+    turn:'Einrichter/CNC-Programmierer verstärken oder Spanntechnik/Hochdruck-KSS ausbauen.',
+    inspect:'Qualitätssicherung verstärken oder Messtaster ausbauen.',
+    ship:'Maschinenbediener verstärken oder Stangenlader-Optimierung ausbauen.'
+  };
+  const [id,rate]=Object.entries(r).sort((a,b)=>a[1]-b[1])[0]||['saw',0];
+  return {id,name:labels[id]||id,rate,action:actions[id]||'Kapazität dieses Prozessschritts erhöhen.',rates:r};
+}
+function dashboardData(){
+  const partRate=Math.max(.125,Number(game()?.partRate?.())||.125);
+  const customers=customerKpis(),bottleneck=bottleneckData();
+  return {
+    autoPerSecond:partRate*8,
+    partRate,
+    productionMultiplier:productionMultiplier(),
+    availability:maintenanceMultiplier(),
+    qualityYield:qualityYield(),
+    customers,
+    bottleneck,
+    staff:totalStaff(),
+    shift:SHIFTS[S.shift]?.name||'Frühschicht'
+  };
+}
 function markDirty(){dirty=true}
 function rerender(){if(document.getElementById('operationsSystems'))game()?.render?.()}
 
@@ -226,6 +260,12 @@ function shiftCard(id){
   const x=SHIFTS[id],on=S.shift===id,unlocked=shiftUnlocked(id);
   return `<button class="opsShift ${on?'on':''}" ${unlocked?'':'disabled'} onclick="CNC_OPERATIONS.setShift('${id}')"><b>${x.icon} ${esc(x.name)}</b><span>×${x.mult.toFixed(2)} Produktion</span><small>${esc(x.desc)}</small></button>`;
 }
+function renderDashboard(){
+  const d=dashboardData(),c=d.customers,b=d.bottleneck;
+  const delivery=c.deliveryRate==null?'—':Math.round(c.deliveryRate*100)+' %';
+  const complaints=c.complaintRate==null?'—':(c.complaintRate*100).toFixed(1)+' %';
+  return `<div class="section">📊 Betriebsdashboard</div><div class="grid"><div class="card stat"><div class="label">Fertigungsleistung</div><div class="value">${money(d.autoPerSecond)}/s</div><div class="sub">${num(d.partRate)} Teile/s</div></div><div class="card stat"><div class="label">Gutteilquote</div><div class="value">${(d.qualityYield*100).toFixed(1)} %</div><div class="sub">QS + Messtaster</div></div><div class="card stat"><div class="label">Verfügbarkeit</div><div class="value">${Math.round(d.availability*100)} %</div><div class="sub">Werkzeug · KSS · Zustand</div></div><div class="card stat"><div class="label">Liefertreue</div><div class="value">${delivery}</div><div class="sub">${c.completed} Großkundenaufträge</div></div><div class="card stat"><div class="label">Reklamationen</div><div class="value">${complaints}</div><div class="sub">${c.complaints} Qualitätsfälle</div></div><div class="card stat"><div class="label">Produktionsfaktor</div><div class="value">×${d.productionMultiplier.toFixed(2)}</div><div class="sub">${esc(d.shift)}</div></div></div><div class="section">🚦 Engpassanalyse</div><div class="card item"><div class="row"><div><div class="name">${b.id==='maintenance'?'⚠️':'🔎'} Engpass: ${esc(b.name)}</div><div class="desc">${b.id==='locked'?'Produktionskette noch nicht aktiv':`Kapazität ${num(b.rate)} Teile/s`}</div></div>${b.rates?`<div class="score">${num(Math.min(...Object.values(b.rates)))} /s</div>`:''}</div><div class="desc" style="margin-top:8px"><b>Empfehlung:</b> ${esc(b.action)}</div>${b.rates?`<div class="desc" style="margin-top:6px">Sägen ${num(b.rates.saw)}/s · Drehen ${num(b.rates.turn)}/s · Prüfen ${num(b.rates.inspect)}/s · Versand ${num(b.rates.ship)}/s</div>`:''}</div>`;
+}
 function renderEquipment(){
   if(!equipmentUnlocked()){
     const left=Math.max(0,50000-lifetime());
@@ -254,7 +294,7 @@ function renderChain(){
 }
 function render(){
   const mult=productionMultiplier(),staff=totalStaff();
-  return `<div id="operationsSystems"><div class="notice"><b>👥 Betriebsführung aktiv.</b> Mitarbeiter und Schichten verstärken die Fertigung kontrolliert. Vollausbau ersetzt keinen Maschinenpark; Wartung und Investitionen bleiben relevant.</div><div class="grid"><div class="card stat"><div class="label">Mitarbeiter</div><div class="value">${staff}</div><div class="sub">5 Fachbereiche</div></div><div class="card stat"><div class="label">Produktionsfaktor</div><div class="value">×${mult.toFixed(2)}</div><div class="sub">${esc(SHIFTS[S.shift]?.name||'Frühschicht')}</div></div></div><div class="section">Schichtmodell</div><div class="opsShifts">${Object.keys(SHIFTS).map(shiftCard).join('')}</div><div class="section">Mitarbeiter</div><div class="list">${Object.keys(ROLES).map(staffCard).join('')}</div>${renderEquipment()}${renderMaintenance()}${renderChain()}</div>`;
+  return `<div id="operationsSystems"><div class="notice"><b>👥 Betriebsführung aktiv.</b> Mitarbeiter und Schichten verstärken die Fertigung kontrolliert. Vollausbau ersetzt keinen Maschinenpark; Wartung und Investitionen bleiben relevant.</div>${renderDashboard()}<div class="grid"><div class="card stat"><div class="label">Mitarbeiter</div><div class="value">${staff}</div><div class="sub">5 Fachbereiche</div></div><div class="card stat"><div class="label">Produktionsfaktor</div><div class="value">×${mult.toFixed(2)}</div><div class="sub">${esc(SHIFTS[S.shift]?.name||'Frühschicht')}</div></div></div><div class="section">Schichtmodell</div><div class="opsShifts">${Object.keys(SHIFTS).map(shiftCard).join('')}</div><div class="section">Mitarbeiter</div><div class="list">${Object.keys(ROLES).map(staffCard).join('')}</div>${renderEquipment()}${renderMaintenance()}${renderChain()}</div>`;
 }
 function start(){
   if(tickTimer)clearInterval(tickTimer);if(syncTimer)clearInterval(syncTimer);
@@ -267,6 +307,6 @@ function stop(){if(tickTimer)clearInterval(tickTimer);if(syncTimer)clearInterval
 
 export async function initCncOperations(ctx){
   sb=ctx.supabase;user=ctx.user;readState=ctx.readState||(()=>null);await load();
-  const api={render,refresh,hire,buyUpgrade,setShift,setMaterial,buyMaterial,maintain,productionMultiplier,get state(){return S},start,stop};
+  const api={render,refresh,hire,buyUpgrade,setShift,setMaterial,buyMaterial,maintain,productionMultiplier,dashboardData,stageRates,qualityYield,get state(){return S},start,stop};
   window.CNC_OPERATIONS=api;start();return api;
 }
