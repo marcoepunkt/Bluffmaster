@@ -40,7 +40,8 @@ function makeOffer(){
   const productionValue=Math.max(q*click()*.9,auto()*duration);
   const streakBonus=1+Math.min(.25,s.contractStreak*.015);
   const pay=Math.max(100,Math.round((productionValue*t.reward+q*click()*.35)*contractMult()*streakBonus));
-  return {id:Date.now().toString(36)+Math.random().toString(36).slice(2,7),type:t.id,typeName:t.name,icon:t.icon,className:t.className,name,mat,q,done:0,pay,duration};
+  const offer={id:Date.now().toString(36)+Math.random().toString(36).slice(2,7),type:t.id,typeName:t.name,icon:t.icon,className:t.className,name,mat,q,done:0,pay,duration};
+  return window.CNC_CUSTOMERS?.decorateOffer?.(offer)||offer;
 }
 function ensureOffers(force=false){
   const count=3+s.starShop.planning;
