@@ -14,7 +14,7 @@ for(const marker of ['Messschieber','Bügelmessschraube','Höhenmessgerät','Rau
 }
 if(quality.includes('MutationObserver'))fail('Quality-Modul darf keinen MutationObserver verwenden');
 ok('Quality-Modul arbeitet ohne MutationObserver');
-if(!index.includes('quality-systems-v1.js?v=1'))fail('Quality-Modul fehlt in index.html');
+if(!index.includes('quality-systems-v1.js?v=2'))fail('Aktuelles Quality-Modul fehlt in index.html');
 ok('Quality-Modul ist in index.html eingebunden');
 
 const elements=new Map();
