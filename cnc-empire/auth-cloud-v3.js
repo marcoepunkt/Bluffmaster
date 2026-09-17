@@ -4,7 +4,7 @@ const OWNER_KEY='cncEmpireCloudOwnerV2';
 const SEASON_KEY='cncEmpireSeason';
 const CURRENT_SEASON='2';
 const SAVE_TABLE='player_saves_s2';
-const GAME_PART_VERSION='8';
+const GAME_PART_VERSION='9';
 const CLOUD_INTERVAL_MS=5000;
 let supabase=null,session=null,gameLoaded=false,cloudTimer=null,cloudBusy=false,lastUploaded='',onlineSystems=null,operationsSystems=null;
 const $=id=>document.getElementById(id);
@@ -74,7 +74,7 @@ function hardBalance(code){
   return code;
 }
 async function initOnlineSystems(){if(onlineSystems)return onlineSystems;const mod=await import('./online-systems-v1.js?v=1');onlineSystems=await mod.initCncOnline({supabase,user:session.user,readState:()=>readLocalState()?.state||null});return onlineSystems}
-async function initOperationsSystems(){if(operationsSystems)return operationsSystems;const mod=await import('./operations-v1.js?v=7');operationsSystems=await mod.initCncOperations({supabase,user:session.user,readState:()=>readLocalState()?.state||null});return operationsSystems}
+async function initOperationsSystems(){if(operationsSystems)return operationsSystems;const mod=await import('./operations-v1.js?v=8');operationsSystems=await mod.initCncOperations({supabase,user:session.user,readState:()=>readLocalState()?.state||null});return operationsSystems}
 function installGameHooks(){if(!window.G||window.G.__onlineHooks)return;const originalClaim=window.G.claim;window.G.claim=()=>{const order=readLocalState()?.state?.order;const completed=order&&Number(order.done)>=Number(order.q);originalClaim();if(completed&&order)window.CNC_ONLINE?.recordOrderClaim?.({...order})};window.G.__onlineHooks=true}
 async function loadGame(){if(gameLoaded)return;gameLoaded=true;const root=$('root');root.innerHTML='<div class="notice">Saison 2 + Online-Systeme werden gestartet …</div>';const files=[1,2,3,4,5,6,7].map(n=>'./v3part'+n+'.txt?v='+GAME_PART_VERSION);const parts=await Promise.all(files.map(f=>fetch(f,{cache:'no-store'}).then(r=>{if(!r.ok)throw new Error(f+' '+r.status);return r.text()})));new Function(hardBalance(parts.join('')))();installGameHooks();const now=readLocalState();if(now)lastUploaded='';installCloudReset();startCloudLoop();await flushCloud(true)}
 function installCloudReset(){if(!window.G||window.G.__cloudReset)return;window.G.reset=async()=>{if(!confirm('Saison-2-Spielstand wirklich löschen? Dein Account bleibt bestehen.'))return;setCloud('Löscht …','busy');const {error}=await supabase.from(SAVE_TABLE).delete().eq('user_id',session.user.id);if(error){setCloud('Löschen fehlgeschlagen','error');alert('Cloud-Spielstand konnte nicht gelöscht werden.');return}clearLocalGame();lastUploaded='';localStorage.removeItem(SEASON_KEY);location.reload()};window.G.__cloudReset=true}
