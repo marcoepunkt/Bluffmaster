@@ -1,48 +1,88 @@
 let sb=null,user=null,api=null,timer=null;
-const B={event:null,board:[],mine:null,loading:false,error:'',lastRefresh:0,reward:{event:null,winner:null,mine:null,claimed:false,eligible:false,trophies:0,error:''}};
+const B={event:null,nextEvent:null,board:[],mine:null,loading:false,error:'',lastRefresh:0,rewards:[],history:[],openRewards:[],trophies:0};
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const num=n=>new Intl.NumberFormat('de-DE',{maximumFractionDigits:0}).format(Number(n)||0);
-function timeLeft(iso){const ms=Math.max(0,new Date(iso).getTime()-Date.now());const h=Math.floor(ms/3600000),m=Math.floor((ms%3600000)/60000);return h>24?Math.ceil(h/24)+' Tage':h+'h '+m+'m'}
+const date=iso=>new Intl.DateTimeFormat('de-DE',{day:'2-digit',month:'2-digit',year:'2-digit'}).format(new Date(iso));
+function timeLeft(iso){const ms=Math.max(0,new Date(iso).getTime()-Date.now());const d=Math.floor(ms/86400000),h=Math.floor((ms%86400000)/3600000),m=Math.floor((ms%3600000)/60000);return d>0?`${d} Tage ${h} Std.`:h>0?`${h} Std. ${m} Min.`:`${m} Min.`}
+function durationText(a,b){const h=Math.max(0,Math.round((new Date(b)-new Date(a))/3600000));return h%24===0?`${h/24} Tage`:`${h} Std.`}
 async function readConfig(){const text=await fetch('./v3part1.txt?v=7',{cache:'no-store'}).then(r=>{if(!r.ok)throw new Error('Konfiguration fehlt');return r.text()});const url=text.match(/const API='(https:\/\/[^']+)\/rest\/v1\/player_profiles'/)?.[1];const key=text.match(/const APIKEY='([^']+)'/)?.[1];if(!url||!key)throw new Error('Online-Konfiguration fehlt');return {url,key}}
 async function initClient(){const [{createClient},cfg]=await Promise.all([import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.105.0/+esm'),readConfig()]);sb=createClient(cfg.url,cfg.key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});const {data:{session}}=await sb.auth.getSession();user=session?.user||null;if(!user)throw new Error('Nicht angemeldet')}
-async function refreshBattle(){if(!sb||!user||B.loading)return;B.loading=true;B.error='';try{const now=new Date().toISOString();let ev=await sb.from('clan_events_s2').select('*').lte('starts_at',now).gt('ends_at',now).order('starts_at',{ascending:false}).limit(1).maybeSingle();if(ev.error)throw ev.error;if(!ev.data){ev=await sb.from('clan_events_s2').select('*').gt('starts_at',now).order('starts_at').limit(1).maybeSingle();if(ev.error)throw ev.error}B.event=ev.data||null;B.board=[];B.mine=null;if(B.event){const active=new Date(B.event.starts_at)<=new Date()&&new Date(B.event.ends_at)>new Date();const q=await sb.from('clan_event_leaderboard_s2').select('event_id,clan_id,clan_name,parts,contributors').eq('event_id',B.event.id).order('parts',{ascending:false}).limit(25);if(q.error)throw q.error;B.board=q.data||[];if(active){const mine=await sb.from('clan_event_contributions_s2').select('event_id,clan_id,parts').eq('event_id',B.event.id).eq('user_id',user.id).maybeSingle();if(mine.error)throw mine.error;B.mine=mine.data||null}}B.lastRefresh=Date.now()}catch(e){console.error('Clan battle refresh',e);B.error=String(e?.message||e)}finally{B.loading=false}}
-async function refreshRewards(){
-  const R={event:null,winner:null,mine:null,claimed:false,eligible:false,trophies:0,error:''};
+function currentClan(){return api?.state?.membership?.clan_id||null}
+function applyPrestige(value){const p=Math.max(0,Math.floor(Number(value)||0)),st=window.CNC_GAME_BRIDGE?.getState?.();if(!st)return;if(p>Math.max(0,Math.floor(Number(st.prestige)||0))){st.prestige=p;window.CNC_GAME_BRIDGE?.save?.()}}
+async function eventBoard(eventId){const q=await sb.from('clan_event_leaderboard_s2').select('event_id,clan_id,clan_name,parts,contributors').eq('event_id',eventId).order('parts',{ascending:false}).limit(25);if(q.error)throw q.error;return q.data||[]}
+async function refreshBattle(){
+  if(!sb||!user||B.loading)return;B.loading=true;B.error='';
   try{
-    const rewards=await sb.from('clan_event_rewards_s2').select('event_id,clan_id,awarded_at').eq('user_id',user.id).order('awarded_at',{ascending:false});
-    if(rewards.error)throw rewards.error;const rows=rewards.data||[];R.trophies=rows.length;
-    const now=new Date().toISOString();const ev=await sb.from('clan_events_s2').select('id,event_key,name,material,ends_at').lte('ends_at',now).order('ends_at',{ascending:false}).limit(1).maybeSingle();
-    if(ev.error)throw ev.error;R.event=ev.data||null;if(!R.event){B.reward=R;return}
-    const board=await sb.from('clan_event_leaderboard_s2').select('event_id,clan_id,clan_name,parts,contributors').eq('event_id',R.event.id).order('parts',{ascending:false}).limit(25);
-    if(board.error)throw board.error;R.winner=board.data?.[0]||null;
-    const mine=await sb.from('clan_event_contributions_s2').select('event_id,clan_id,parts').eq('event_id',R.event.id).eq('user_id',user.id).maybeSingle();
-    if(mine.error)throw mine.error;R.mine=mine.data||null;R.claimed=rows.some(x=>x.event_id===R.event.id);
-    if(R.mine&&Number(R.mine.parts)>0&&R.winner){const ownRow=(board.data||[]).find(x=>x.clan_id===R.mine.clan_id);R.eligible=!!ownRow&&Number(ownRow.parts)===Number(R.winner.parts)}
-  }catch(e){console.error('Clan reward refresh',e);R.error=String(e?.message||e)}
-  B.reward=R;
+    const now=new Date().toISOString();
+    const [active,next]=await Promise.all([
+      sb.from('clan_events_s2').select('*').lte('starts_at',now).gt('ends_at',now).order('starts_at',{ascending:false}).limit(1).maybeSingle(),
+      sb.from('clan_events_s2').select('*').gt('starts_at',now).order('starts_at').limit(1).maybeSingle()
+    ]);
+    if(active.error)throw active.error;if(next.error)throw next.error;
+    B.event=active.data||null;B.nextEvent=next.data||null;B.board=[];B.mine=null;
+    if(B.event){
+      B.board=await eventBoard(B.event.id);
+      const mine=await sb.from('clan_event_contributions_s2').select('event_id,clan_id,parts').eq('event_id',B.event.id).eq('user_id',user.id).maybeSingle();
+      if(mine.error)throw mine.error;B.mine=mine.data||null;
+    }
+    B.lastRefresh=Date.now();
+  }catch(e){console.error('Clan battle refresh',e);B.error=String(e?.message||e)}finally{B.loading=false}
+}
+async function refreshRewards(){
+  try{
+    const now=new Date().toISOString();
+    const [events,rewards,contrib]=await Promise.all([
+      sb.from('clan_events_s2').select('id,event_key,name,material,starts_at,ends_at,target_per_clan').lte('ends_at',now).order('ends_at',{ascending:false}).limit(12),
+      sb.from('clan_event_rewards_s2').select('event_id,clan_id,awarded_at').eq('user_id',user.id).order('awarded_at',{ascending:false}),
+      sb.from('clan_event_contributions_s2').select('event_id,clan_id,parts').eq('user_id',user.id)
+    ]);
+    if(events.error)throw events.error;if(rewards.error)throw rewards.error;if(contrib.error)throw contrib.error;
+    B.rewards=rewards.data||[];B.trophies=B.rewards.length;
+    const rewardIds=new Set(B.rewards.map(x=>x.event_id));
+    const mineMap=new Map((contrib.data||[]).map(x=>[x.event_id,x]));
+    const history=[];
+    for(const ev of events.data||[]){
+      const board=await eventBoard(ev.id),winner=board[0]||null,mine=mineMap.get(ev.id)||null;
+      const ownRow=mine?board.find(x=>x.clan_id===mine.clan_id):null;
+      const eligible=!!(mine&&Number(mine.parts)>0&&winner&&ownRow&&Number(ownRow.parts)===Number(winner.parts));
+      const claimed=rewardIds.has(ev.id);
+      history.push({event:ev,winner,mine,rank:mine?board.findIndex(x=>x.clan_id===mine.clan_id)+1:0,eligible,claimed});
+    }
+    B.history=history;B.openRewards=history.filter(x=>x.eligible&&!x.claimed);
+  }catch(e){console.error('Clan reward/history refresh',e);B.error=B.error||String(e?.message||e)}
 }
 async function refreshAll(){await refreshBattle();await refreshRewards()}
-function currentClan(){return api?.state?.membership?.clan_id||null}
 async function record(order){if(!B.event||!order)return;const now=Date.now(),start=new Date(B.event.starts_at).getTime(),end=new Date(B.event.ends_at).getTime();if(now<start||now>=end)return;if(String(order.mat)!==String(B.event.material))return;const clanId=currentClan();if(!clanId)return;const add=Math.max(0,Math.floor(Number(order.q)||0));if(!add)return;if(B.mine&&B.mine.clan_id!==clanId){console.warn('Clan battle contribution locked to first clan of event');return}const {data,error}=await sb.rpc('add_clan_event_parts_s2',{p_event_id:B.event.id,p_clan_id:clanId,p_parts:add});if(error){console.warn('Clan battle contribution',error);return}B.mine={event_id:B.event.id,clan_id:clanId,parts:Number(data)||((Number(B.mine?.parts)||0)+add)};setTimeout(async()=>{await refreshAll();if(document.getElementById('onlineSystems'))window.G?.tab?.('online')},350)}
-async function claimWinnerReward(){
-  const R=B.reward;if(!R?.event||!R?.mine||!R.eligible||R.claimed)return;
-  const {error}=await sb.from('clan_event_rewards_s2').insert({event_id:R.event.id,user_id:user.id,clan_id:R.mine.clan_id,reward_type:'winner_trophy'});
-  if(error){if(String(error.code)==='23505'){await refreshRewards();window.G?.tab?.('online');return}console.warn('Clan reward claim',error);alert('Siegerpokal konnte nicht abgeholt werden. Bitte Online-Daten aktualisieren.');return}
-  await refreshRewards();alert('🏆 Firmen-Cup Siegerpokal erhalten!');window.G?.tab?.('online');
+async function claimWinnerReward(eventId){
+  const item=B.openRewards.find(x=>x.event.id===eventId);if(!item)return;
+  const {data,error}=await sb.rpc('claim_clan_event_winner_reward_s2',{p_event_id:eventId});
+  if(error){console.warn('Clan winner reward',error);alert('Siegerbelohnung konnte nicht abgeholt werden. Bitte Online-Daten aktualisieren.');return}
+  applyPrestige(data?.prestige);await refreshRewards();
+  alert(data?.prestige_awarded===1?'🏆 Siegerpokal + 1 Prestigepunkt erhalten!':'🏆 Siegerbelohnung bereits abgeholt.');
+  window.G?.tab?.('online');
 }
-function renderRewards(){
-  const R=B.reward;
-  if(R.error)return `<div class="section">🏆 Firmen-Cup Belohnung</div><div class="card item"><div class="muted">Belohnungsstatus konnte nicht geladen werden.</div></div>`;
-  if(!R.event)return `<div class="section">🏆 Firmen-Cup Belohnung</div><div class="card item"><div class="name">Siegerpokal</div><div class="desc">Nach Ende des ersten Firmen-Cups kann die Siegerfirma hier ihren Pokal abholen.</div><div class="score" style="margin-top:8px">Deine Pokale: ${num(R.trophies)}</div></div>`;
-  const winner=R.winner?.clan_name||'Noch kein Sieger';
-  let body=`<div class="desc">Letzter Cup: ${esc(R.event.name)} · Sieger: <b>${esc(winner)}</b></div>`;
-  if(R.claimed)body+=`<div class="notice onlineNotice" style="margin-top:10px">🏆 Siegerpokal bereits erhalten.</div>`;
-  else if(R.eligible)body+=`<div class="notice onlineNotice" style="margin-top:10px">🥇 Deine Firma hat Platz 1 erreicht und du hast selbst Eventteile beigetragen.</div><button class="btn onlineWide" onclick="CNC_CLAN_BATTLE.claimWinnerReward()">🏆 Siegerpokal abholen</button>`;
-  else if(R.mine&&Number(R.mine.parts)>0)body+=`<div class="desc" style="margin-top:8px">Du hast ${num(R.mine.parts)} Teile beigetragen. Der Siegerpokal geht nur an beitragende Mitglieder der erstplatzierten Firma.</div>`;
-  else body+=`<div class="desc" style="margin-top:8px">Für diesen Cup besteht kein persönlicher Belohnungsanspruch.</div>`;
-  return `<div class="section">🏆 Firmen-Cup Belohnung</div><div class="card item">${body}<div class="score" style="margin-top:10px">Deine Siegerpokale: ${num(R.trophies)}</div></div>`;
+function renderCurrent(){
+  if(!B.event)return `<div class="section">⚔️ Aktueller Firmen-Cup</div><div class="card item"><div class="muted">Aktuell läuft kein Firmen-Cup.</div></div>`;
+  const target=Number(B.event.target_per_clan)||1,clanId=currentClan(),rank=clanId?B.board.findIndex(x=>x.clan_id===clanId)+1:0,myRow=clanId?B.board.find(x=>x.clan_id===clanId):null,myParts=Number(myRow?.parts)||0,pct=Math.min(100,myParts/target*100);
+  const board=B.board.length?B.board.slice(0,10).map((r,i)=>`<div class="onlineRow"><b>${i+1}</b><div><div class="name">${esc(r.clan_name)}</div><div class="desc">${num(r.contributors)} aktive Mitglieder</div></div><div class="score">${num(r.parts)} Teile</div></div>`).join(''):'<div class="muted">Noch keine Firma hat Eventteile geliefert.</div>';
+  let note='Tritt einer Firma bei, um am Firmen-Cup teilzunehmen.';if(clanId)note=`Deine Firma: Rang ${rank||'–'} · ${num(myParts)} Teile. Dein persönlicher Beitrag: ${num(B.mine?.parts||0)} Teile.`;if(B.mine&&clanId&&B.mine.clan_id!==clanId)note='Dein Beitrag ist für dieses Event an deine erste Firma gebunden.';
+  return `<div class="section">⚔️ Aktueller Firmen-Cup</div><div class="card item communityCard"><div class="row"><div><div class="name">${esc(B.event.name)}</div><div class="desc">${esc(B.event.material)} · ${date(B.event.starts_at)}–${date(B.event.ends_at)} · ${durationText(B.event.starts_at,B.event.ends_at)}</div></div><div class="score">${rank?'#'+rank:'—'}</div></div><div class="notice onlineNotice" style="margin-top:8px"><b>⏱ Noch ${timeLeft(B.event.ends_at)}</b><br>🏆 Belohnung Platz 1: Siegerpokal + ★ 1 Prestigepunkt je beitragendem Mitglied.</div>${clanId?`<div class="progress"><span style="width:${pct}%"></span></div><div class="row"><span class="muted">${num(myParts)} / ${num(target)} Teile</span><span class="muted">${pct.toFixed(1)}%</span></div>`:''}<div class="desc" style="margin-top:8px">${note}<br>Nur abgeschlossene Aufträge aus <b>${esc(B.event.material)}</b> zählen.</div></div><div class="section">Firmen-Cup Rangliste</div><div class="card item">${board}</div>`
 }
-function renderBattle(){if(!B.event)return `<div class="section">⚔️ Firmen-Cup</div><div class="card item"><div class="muted">Noch kein Firmenwettbewerb geplant.</div></div>${renderRewards()}`;const now=Date.now(),start=new Date(B.event.starts_at).getTime(),end=new Date(B.event.ends_at).getTime(),active=now>=start&&now<end,target=Number(B.event.target_per_clan)||1;const clanId=currentClan(),rank=clanId?B.board.findIndex(x=>x.clan_id===clanId)+1:0,myRow=clanId?B.board.find(x=>x.clan_id===clanId):null,myParts=Number(myRow?.parts)||0,pct=Math.min(100,myParts/target*100);const board=B.board.length?B.board.slice(0,10).map((r,i)=>`<div class="onlineRow"><b>${i+1}</b><div><div class="name">${esc(r.clan_name)}</div><div class="desc">${num(r.contributors)} aktive Mitglieder</div></div><div class="score">${num(r.parts)} Teile</div></div>`).join(''):'<div class="muted">Noch keine Firma hat Eventteile geliefert.</div>';let note='Tritt einer Firma bei, um am Firmen-Cup teilzunehmen.';if(clanId)note=`Deine Firma: Rang ${rank||'–'} · ${num(myParts)} Teile. Dein persönlicher Beitrag: ${num(B.mine?.parts||0)} Teile.`;if(B.mine&&clanId&&B.mine.clan_id!==clanId)note='Dein Beitrag ist für dieses Event an deine erste Firma gebunden. Nach einem Firmenwechsel kannst du in diesem Cup nicht erneut punkten.';return `<div class="section">⚔️ Firmen-vs-Firmen</div><div class="card item communityCard"><div class="row"><div><div class="name">${esc(B.event.name)}</div><div class="desc">${esc(B.event.material)} · ${active?'endet in '+timeLeft(B.event.ends_at):'startet in '+timeLeft(B.event.starts_at)}</div></div><div class="score">${rank?'#'+rank:'—'}</div></div>${clanId?`<div class="progress"><span style="width:${pct}%"></span></div><div class="row"><span class="muted">${num(myParts)} / ${num(target)} Teile</span><span class="muted">${pct.toFixed(1)}%</span></div>`:''}<div class="notice onlineNotice">${note}<br>${active?`Nur abgeschlossene Aufträge aus <b>${esc(B.event.material)}</b> zählen. Starke Produktion bringt entsprechend mehr Eventteile.`:'Der Wettbewerb ist noch nicht aktiv.'}</div></div><div class="section">Firmen-Cup Rangliste</div><div class="card item">${board}</div>${renderRewards()}`}
-function patch(){if(!api||api.__clanBattlePatched)return;const baseRender=api.render.bind(api);const baseRefresh=api.refresh.bind(api);const baseManual=api.manualRefresh?.bind(api);const baseRecord=api.recordOrderClaim.bind(api);api.render=()=>{const html=baseRender();const battle=renderBattle();return html.replace('<div id="onlineSystems">','<div id="onlineSystems">'+(B.error?'<div class="notice">Firmen-Cup konnte nicht vollständig aktualisiert werden.</div>':'')+battle)};api.refresh=async()=>{await baseRefresh();await refreshAll()};api.manualRefresh=async()=>{if(baseManual)await baseManual();await refreshAll();window.G?.tab?.('online')};api.recordOrderClaim=async order=>{await baseRecord(order);await record(order)};api.__clanBattlePatched=true;window.CNC_CLAN_BATTLE={state:B,refresh:refreshAll,render:renderBattle,record,claimWinnerReward};}
+function renderNext(){
+  const e=B.nextEvent;if(!e)return `<div class="section">📅 Nächster Cup</div><div class="card item"><div class="muted">Noch kein weiterer Firmen-Cup geplant.</div></div>`;
+  return `<div class="section">📅 Nächster Cup</div><div class="card item"><div class="row"><div><div class="name">${esc(e.name)}</div><div class="desc">${esc(e.material)} · ${date(e.starts_at)}–${date(e.ends_at)} · ${durationText(e.starts_at,e.ends_at)}</div></div><div class="score">in ${timeLeft(e.starts_at)}</div></div><div class="desc">🏆 Platz 1: Siegerpokal + ★ 1 Prestigepunkt je beitragendem Mitglied.</div></div>`
+}
+function renderOpenRewards(){
+  const rows=B.openRewards.map(x=>`<div class="card item"><div class="row"><div><div class="name">🎁 ${esc(x.event.name)}</div><div class="desc">${date(x.event.ends_at)} · Sieger: ${esc(x.winner?.clan_name||'—')} · dein Beitrag ${num(x.mine?.parts||0)} Teile</div></div><div class="score">+1 ★</div></div><button class="btn onlineWide" onclick="CNC_CLAN_BATTLE.claimWinnerReward('${x.event.id}')">🏆 Pokal + 1 Prestigepunkt abholen</button></div>`).join('');
+  return `<div class="section">🎁 Offene Belohnungen <span class="sectionHint">${B.openRewards.length}</span></div>${rows?`<div class="list">${rows}</div>`:`<div class="card item"><div class="muted">Keine offenen Firmen-Cup-Belohnungen. Gewonnene Belohnungen verfallen nicht.</div></div>`}`
+}
+function renderHistory(){
+  if(!B.history.length)return `<div class="section">🏆 Cup-Historie</div><div class="card item"><div class="muted">Noch keine abgeschlossenen Firmen-Cups.</div></div>`;
+  const rows=B.history.slice(0,8).map(x=>{const mine=x.mine?`Deine Firma #${x.rank||'–'} · ${num(x.mine.parts)} Teile`:'Nicht teilgenommen';const badge=x.claimed?'🏆 gewonnen':x.eligible?'🎁 gewonnen – offen':x.rank?`#${x.rank}`:'—';return `<div class="onlineRow"><span>${badge}</span><div><div class="name">${esc(x.event.name)}</div><div class="desc">${date(x.event.starts_at)}–${date(x.event.ends_at)} · Sieger: ${esc(x.winner?.clan_name||'—')}<br>${mine}</div></div><div class="score">${esc(x.event.material)}</div></div>`}).join('');
+  return `<div class="section">🏆 Cup-Historie</div><div class="card item">${rows}</div>`
+}
+function renderTrophySummary(){return `<div class="section">🏆 Deine Firmen-Cup-Erfolge</div><div class="grid"><div class="card stat"><div class="label">Siegerpokale</div><div class="value">${num(B.trophies)}</div><div class="sub">dauerhaft im Account</div></div><div class="card stat"><div class="label">Cup-Prestige</div><div class="value">+${num(B.trophies)} ★</div><div class="sub">durch abgeholte Siege</div></div></div>`}
+function renderBattle(){return `${renderCurrent()}${renderNext()}${renderOpenRewards()}${renderTrophySummary()}${renderHistory()}`}
+function patch(){if(!api||api.__clanBattlePatched)return;const baseRender=api.render.bind(api),baseRefresh=api.refresh.bind(api),baseManual=api.manualRefresh?.bind(api),baseRecord=api.recordOrderClaim.bind(api);api.render=()=>{const html=baseRender();return html.replace('<div id="onlineSystems">','<div id="onlineSystems">'+(B.error?'<div class="notice">Firmen-Cup konnte nicht vollständig aktualisiert werden.</div>':'')+renderBattle())};api.refresh=async()=>{await baseRefresh();await refreshAll()};api.manualRefresh=async()=>{if(baseManual)await baseManual();await refreshAll();window.G?.tab?.('online')};api.recordOrderClaim=async order=>{await baseRecord(order);await record(order)};api.__clanBattlePatched=true;window.CNC_CLAN_BATTLE={state:B,refresh:refreshAll,render:renderBattle,record,claimWinnerReward,renderTrophySummary};}
 async function boot(){try{for(let i=0;i<80&&!window.CNC_ONLINE;i++)await new Promise(r=>setTimeout(r,100));api=window.CNC_ONLINE;if(!api)throw new Error('Online-System nicht geladen');await initClient();await refreshAll();patch();timer=setInterval(refreshAll,30000);if(document.getElementById('onlineSystems'))window.G?.tab?.('online')}catch(e){console.error('Clan battle boot',e)}}
 boot();
