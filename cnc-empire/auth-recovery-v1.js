@@ -29,6 +29,7 @@ function installStyles(){
   style.id='recoveryStyles';
   style.textContent=`
     .authforgot{width:100%;margin-top:2px;background:transparent;color:#8fbce8;border:0;min-height:40px;font-weight:800}
+    .authforgot:disabled{opacity:.45}
     .recoveryOverlay{position:fixed;inset:0;z-index:9999;background:#07101eef;display:flex;align-items:center;justify-content:center;padding:18px}
     .recoveryBox{width:min(100%,440px);background:#10223a;border:1px solid #ffffff20;border-radius:18px;padding:18px;color:#fff;box-shadow:0 18px 50px #0008}
     .recoveryBox h2{margin:0 0 6px;font-size:20px}.recoveryBox p{color:#aebdd0;font-size:12px;line-height:1.45}
@@ -67,6 +68,7 @@ function showRecoveryPanel(){
 
 async function sendReset(){
   const email=String($('authEmail')?.value||'').trim().toLowerCase();
+  if(!recoveryClient){authMessage('Passwort-Funktion wird noch geladen. Bitte gleich erneut tippen.','error');return;}
   if(!email||!email.includes('@')){authMessage('Bitte zuerst deine E-Mail-Adresse eingeben.','error');return;}
   const btn=$('forgotPasswordBtn');
   if(btn)btn.disabled=true;
@@ -89,6 +91,7 @@ function installForgotButton(){
   btn.type='button';
   btn.className='authforgot';
   btn.textContent='Passwort vergessen?';
+  btn.disabled=true;
   btn.addEventListener('click',sendReset);
   anchor.insertAdjacentElement('afterend',btn);
 }
@@ -99,6 +102,8 @@ async function bootRecovery(){
   try{
     const cfg=await readConfig();
     recoveryClient=createClient(cfg.url,cfg.key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storageKey:'cnc-empire-recovery-v1'}});
+    const btn=$('forgotPasswordBtn');
+    if(btn)btn.disabled=false;
     const hinted=location.hash.includes('type=recovery')||location.search.includes('type=recovery');
     recoveryClient.auth.onAuthStateChange((event,session)=>{
       if(event==='PASSWORD_RECOVERY'&&session)showRecoveryPanel();
