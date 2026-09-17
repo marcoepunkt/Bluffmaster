@@ -58,4 +58,4 @@ if(!Array.isArray(s.offers))s.offers=[];
 if(s.runRevenue==null)s.runRevenue=s.run===0?(s.lifetime||120):120;
 if(s.starsSpent==null)s.starsSpent=Object.entries(s.starShop).reduce((sum,[id,lv])=>sum+spentFor(id,Number(lv)||0),0);
 if(!['1','10','max'].includes(String(s.buyMode)))s.buyMode='1';
-if(s.weekKey!==we
+if(s.weekKey!==weekKey()){s.week=0;s.weekKey=weekKey()}
