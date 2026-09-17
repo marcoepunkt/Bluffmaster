@@ -42,4 +42,12 @@ for(const marker of ['player_saves_s2','GAME_PART_VERSION','new Function(hardBal
   ok(`Cloud-Invariante ${marker}`);
 }
 
+const operations=await fs.readFile(path.join(root,'operations-v1.js'),'utf8');
+const operationsCompile=operations.replace(/\bexport\s+(?=async function|function|const|let|class)/g,'').replace(/export\s*\{[^}]*\};?/g,'');
+try{new Function(operationsCompile);ok('Betriebsmodul ist syntaktisch gültig')}catch(e){fail(`Betriebsmodul-Syntaxfehler: ${e.message}`)}
+for(const marker of ['function dashboardData()','function bottleneckData()','function renderDashboard()','Engpassanalyse','dashboardData,stageRates,qualityYield']){
+  if(!operations.includes(marker))fail(`Dashboard-Invariante fehlt: ${marker}`);
+  ok(`Dashboard-Invariante ${marker}`);
+}
+
 console.log('\nCNC EMPIRE Smoke-Test: GRÜN');
