@@ -50,6 +50,8 @@ if(index.includes('active-production-v1.js'))fail('Veralteter Active-Production-
 ok('Kein alter Active-Production-Patch geladen');
 if(!index.includes('auth-cloud-v3.js'))fail('Cloud-Loader fehlt in index.html');
 ok('Cloud-Loader eingebunden');
+if(!index.includes('clan-events-bootstrap-v1.js?v=5'))fail('Aktueller Firmen-Cup-Bootstrap fehlt');
+ok('Aktueller Firmen-Cup-Bootstrap eingebunden');
 
 const auth=await fs.readFile(path.join(root,'auth-cloud-v3.js'),'utf8');
 try{new Function(auth);ok('Cloud-Loader ist syntaktisch gültig')}catch(e){fail(`Cloud-Loader-Syntaxfehler: ${e.message}`)}
@@ -134,5 +136,14 @@ for(const marker of ['function dashboardData()','function bottleneckData()','fun
   if(!operations.includes(marker))fail(`Dashboard-Invariante fehlt: ${marker}`);
   ok(`Dashboard-Invariante ${marker}`);
 }
+
+const clan=await fs.readFile(path.join(root,'clan-events-v1.js'),'utf8');
+try{new Function(clan);ok('Firmen-Cup-Modul ist syntaktisch gültig')}catch(e){fail(`Firmen-Cup-Syntaxfehler: ${e.message}`)}
+for(const marker of ['const REWARD_REFRESH_MS=300000;','async function refreshRewards(force=false)','player_profiles_s2','await refreshBattle();window.CNC_GAME_BRIDGE?.render?.()']){
+  if(!clan.includes(marker))fail(`Firmen-Cup-Invariante fehlt: ${marker}`);
+  ok(`Firmen-Cup-Invariante ${marker}`);
+}
+if(clan.includes('setInterval(refreshAll,30000)'))fail('Firmen-Cup lädt wieder alle Historiedaten alle 30 Sekunden');
+ok('Firmen-Cup-Historie ist gedrosselt');
 
 console.log('\nCNC EMPIRE Smoke-Test: GRÜN');
