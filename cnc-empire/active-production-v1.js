@@ -52,7 +52,11 @@
     });
     const root=document.getElementById('root');
     if(root&&tap&&!document.getElementById('activeProductionHint')){
-      tap.insertAdjacentHTML('afterend',`<div id="activeProductionHint" class="desc" style="text-align:center;margin-top:6px">Aktivfertigung skaliert mit deinem Maschinenpark · Auftragstipp: +${num(orderClickParts())} Teile</div>`);
+      const base=machineBase();
+      const hint=base>0
+        ?`Aktivfertigung: 8 % Maschinen-Grundleistung pro Klick · Maschinenbasis ${euro(base)}/s · Auftragstipp +${num(orderClickParts())} Teile`
+        :`Aktivfertigung aktiv · nach Prestige startet der Klick bei ${euro(clickCash())}; mit neuen Maschinen steigt er automatisch · Auftragstipp +${num(orderClickParts())} Teil`;
+      tap.insertAdjacentHTML('afterend',`<div id="activeProductionHint" class="desc" style="text-align:center;margin-top:6px">${hint}</div>`);
     }
   }
 
