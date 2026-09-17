@@ -1,4 +1,4 @@
-let sb=null,user=null,readState=()=>null,tickTimer=null,syncTimer=null,dirty=false,lastSaved='';
+let sb=null,user=null,readState=()=>null,tickTimer=null,syncTimer=null,dirty=false,lastSaved='',lastUiRender=0;
 
 const MATERIALS={
   '1.4404':8.0,'42CrMo4':6.5,'Al 7075':7.0,'1.4301':7.2,'POM-C':3.0,'1.4122':8.5,
@@ -298,7 +298,13 @@ function render(){
 }
 function start(){
   if(tickTimer)clearInterval(tickTimer);if(syncTimer)clearInterval(syncTimer);
-  tickTimer=setInterval(()=>{processTick();if(document.getElementById('operationsSystems')&&!document.querySelector('input:focus,textarea:focus,select:focus'))rerender()},1000);
+  lastUiRender=0;
+  tickTimer=setInterval(()=>{
+    processTick();
+    const visible=!!document.getElementById('operationsSystems')&&!document.querySelector('input:focus,textarea:focus,select:focus');
+    const coreAlreadyRenders=(Number(game()?.partRate?.())||.125)>.125;
+    if(visible&&!coreAlreadyRenders&&Date.now()-lastUiRender>=2000){lastUiRender=Date.now();rerender()}
+  },1000);
   syncTimer=setInterval(()=>persist(false),10000);
   document.addEventListener('visibilitychange',()=>{if(document.hidden)persist(true)});
   window.addEventListener('pagehide',()=>persist(true));
