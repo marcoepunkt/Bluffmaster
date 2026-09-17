@@ -16,8 +16,8 @@ function buyStar(id){
   save();render();toast(u.name+' verbessert')
 }
 function prestige(){
-  if(s.runRevenue<250000)return toast('Noch '+euro(250000-s.runRevenue)+' bis Meisterprestige');
-  const gain=Math.max(1,Math.floor(Math.sqrt(s.runRevenue/250000)));
+  const req=prestigeRequirement();if(s.runRevenue<req)return toast('Noch '+euro(req-s.runRevenue)+' bis Meisterprestige');
+  const gain=prestigeGain();
   if(!confirm('Meisterlauf neu starten? Du erhältst '+gain+' Meistersterne. Permanente Meister-Upgrades bleiben erhalten.'))return;
   const keep={name:s.name,prestige:s.prestige+gain,starsSpent:s.starsSpent,starShop:s.starShop,run:s.run+1,friendCodes:s.friendCodes,friends:s.friends,duelBest:s.duelBest,lifetime:s.lifetime,week:s.week,weekKey:s.weekKey,friendCode:s.friendCode,playerSecret:s.playerSecret,onlineRegistered:s.onlineRegistered,buyMode:s.buyMode,customerRep:s.customerRep,customerStats:s.customerStats};
   s={...fresh(),...keep};save();render();syncOnline(true)
