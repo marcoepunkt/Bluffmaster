@@ -45,7 +45,12 @@
 
   const nativeFetch=window.fetch.bind(window);
   window.fetch=async(input,init={})=>{
-    const url=typeof input==='string'?input:(input?.url||'');
+    let requestInput=input;
+    let url=typeof input==='string'?input:(input?.url||'');
+    if(typeof requestInput==='string'&&/\.\/v3part[1-7]\.txt\?v=7(?:&|$)/.test(requestInput)){
+      requestInput=requestInput.replace('?v=7','?v=8');
+      url=requestInput;
+    }
     const isProfileApi=url.includes('/rest/v1/player_profiles_s2');
     let nextInit=init;
 
@@ -59,7 +64,7 @@
       }catch{}
     }
 
-    const response=await nativeFetch(input,nextInit);
+    const response=await nativeFetch(requestInput,nextInit);
     const method=String(nextInit?.method||'GET').toUpperCase();
     if(!isProfileApi||method!=='GET'||!response.ok)return response;
 
