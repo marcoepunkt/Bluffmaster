@@ -59,9 +59,10 @@ function qualityYield(){return Math.min(.995,.955+S.staff.quality*.005+S.staff.m
 function hireCost(id){const r=ROLES[id],lv=S.staff[id]||0;return r?Math.round(r.base*Math.pow(r.rate,lv)):Infinity}
 function marketFactor(material){return Number(window.CNC_ONLINE?.marketMultiplier?.(material))||1}
 function rawUnitCost(material=S.material){return (MATERIALS[material]||6)*marketFactor(material)}
-function saleUnitValue(material=S.material){return rawUnitCost(material)*1.72}
+function saleUnitValue(material=S.material){return rawUnitCost(material)*1.25}
 function stageRates(){
-  const base=Math.max(.12,Number(game()?.partRate?.())||.12);
+  const machineRate=Math.max(.125,Number(game()?.partRate?.())||.125);
+  const base=(machineRate/Math.max(1,productionMultiplier()))*.25;
   return {
     saw:base*(.55+S.staff.operator*.055+S.staff.master*.025),
     turn:base*(.45+S.staff.setter*.07+S.staff.programmer*.055+S.staff.master*.03),
