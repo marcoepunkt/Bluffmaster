@@ -18,12 +18,23 @@
     return state;
   }
 
+  const nativeSetItem=Storage.prototype.setItem;
+  Storage.prototype.setItem=function(key,value){
+    if(GAME_KEYS.includes(String(key))){
+      try{
+        const state=sanitizeState(JSON.parse(String(value)));
+        return nativeSetItem.call(this,key,JSON.stringify(state));
+      }catch{}
+    }
+    return nativeSetItem.call(this,key,value);
+  };
+
   for(const key of GAME_KEYS){
     try{
       const raw=localStorage.getItem(key);
       if(!raw)continue;
       const state=sanitizeState(JSON.parse(raw));
-      localStorage.setItem(key,JSON.stringify(state));
+      nativeSetItem.call(localStorage,key,JSON.stringify(state));
     }catch{}
   }
 
