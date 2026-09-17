@@ -70,7 +70,7 @@ function stageRates(){
   };
 }
 function markDirty(){dirty=true}
-function rerender(){if(document.getElementById('operationsSystems'))window.G?.tab?.('operations')}
+function rerender(){if(document.getElementById('operationsSystems'))game()?.render?.()}
 
 async function persist(force=false){
   if(!user||(!dirty&&!force))return true;
