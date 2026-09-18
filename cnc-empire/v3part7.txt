@@ -5,8 +5,8 @@ function render(){
 window.G={
   tap,buy,setBuyMode,acceptOffer,rerollOffers,orderNew,claim,buyStar,prestige,copyCode,addFriend,removeFriend,startDuel,
   refreshFriends:()=>loadFriends(true),
-  community:x=>{if(['suggestions','news','polls'].includes(x)){communityTab=x;render();if(x==='suggestions')window.CNC_FEEDBACK?.refresh?.().then(()=>render())}},
-  tab:x=>{if(!duel){tab=x;render();if(x==='board'||x==='profile')loadFriends();if(x==='online')window.CNC_ONLINE?.refresh?.().then(()=>render());if(x==='operations')window.CNC_OPERATIONS?.refresh?.().then(()=>render());if(x==='community')window.CNC_FEEDBACK?.refresh?.().then(()=>render())}},
+  community:x=>{if(['suggestions','news','polls'].includes(x)){communityTab=x;render();if(x==='suggestions')window.CNC_FEEDBACK?.refresh?.().then(()=>render());else window.CNC_COMMUNITY?.refresh?.().then(()=>render())}},
+  tab:x=>{if(!duel){tab=x;render();if(x==='board'||x==='profile')loadFriends();if(x==='online')window.CNC_ONLINE?.refresh?.().then(()=>render());if(x==='operations')window.CNC_OPERATIONS?.refresh?.().then(()=>render());if(x==='community'){window.CNC_FEEDBACK?.refresh?.().then(()=>render());window.CNC_COMMUNITY?.refresh?.().then(()=>render())}}},
   name:()=>{s.name=document.getElementById('nm').value.trim()||'Meine Werkstatt';save();toast('Name gespeichert');render();syncOnline(true)},
   reset:()=>{if(confirm('Spielstand wirklich löschen? Dein Freundescode geht dabei ebenfalls verloren.')){localStorage.removeItem(K);localStorage.removeItem(OLDK);location.reload()}}
 };

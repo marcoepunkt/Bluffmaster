@@ -11,7 +11,7 @@ function community(){
   if(communityTab==='suggestions')body=window.CNC_FEEDBACK?.render?.()||'<div class="notice">Vorschläge werden geladen …</div>';
   else if(communityTab==='news')body='<div class="section">📢 Community-News</div><div class="card item communityPlaceholder"><div class="name">Neuigkeiten aus CNC Empire</div><div class="desc">Hier erscheinen künftig Spielupdates, wichtige Änderungen und Community-Ankündigungen.</div></div>';
   else body='<div class="section">📊 Community-Umfragen</div><div class="card item communityPlaceholder"><div class="name">Gemeinsam abstimmen</div><div class="desc">Hier können später offizielle Abstimmungen zu neuen Funktionen, Balancing und Spielideen stattfinden.</div></div>';
-  return '<div class="section">👥 Community</div><div class="card item communityHero"><div class="name">Die CNC-Empire-Community</div><div class="desc">Ideen teilen, über Vorschläge abstimmen und künftig Updates sowie Community-Umfragen an einem Ort sehen.</div></div>'+tabBar+body;
+  return '<div class="section">👥 Community</div><div class="card item communityHero"><div class="name">Die CNC-Empire-Community</div><div class="desc">Ideen teilen, über Vorschläge und Umfragen abstimmen und Neuigkeiten aus CNC Empire an einem Ort sehen.</div></div>'+tabBar+body;
 }
 
 function profile(){

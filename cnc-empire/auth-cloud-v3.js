@@ -7,7 +7,7 @@ const SAVE_TABLE='player_saves_s2';
 const GAME_PART_VERSION='12';
 const RELEASE_QUERY=encodeURIComponent(window.CNC_RELEASE||'s2');
 const CLOUD_INTERVAL_MS=5000;
-let supabase=null,session=null,gameLoaded=false,cloudTimer=null,cloudBusy=false,lastUploaded='',onlineSystems=null,operationsSystems=null,feedbackSystems=null;
+let supabase=null,session=null,gameLoaded=false,cloudTimer=null,cloudBusy=false,lastUploaded='',onlineSystems=null,operationsSystems=null,feedbackSystems=null,communitySystems=null;
 const $=id=>document.getElementById(id);
 
 function setMessage(text,type='info'){const el=$('authMessage');if(!el)return;el.textContent=text||'';el.dataset.type=type}
@@ -41,7 +41,7 @@ function showAuth(){$('authGate').hidden=false;$('nav').style.display='none';$('
 
 async function initOnlineSystems(){if(onlineSystems)return onlineSystems;const mod=await import('./online-systems-v1.js?r='+RELEASE_QUERY);onlineSystems=await mod.initCncOnline({supabase,user:session.user,readState:()=>readLocalState()?.state||null});return onlineSystems}
 async function initOperationsSystems(){if(operationsSystems)return operationsSystems;const mod=await import('./operations-v1.js?r='+RELEASE_QUERY);operationsSystems=await mod.initCncOperations({supabase,user:session.user,readState:()=>readLocalState()?.state||null});return operationsSystems}
-async function initFeedbackSystems(){if(feedbackSystems)return feedbackSystems;const mod=await import('./feedback-v1.js?r='+RELEASE_QUERY);feedbackSystems=await mod.initCncFeedback({supabase,user:session.user,readState:()=>readLocalState()?.state||null});return feedbackSystems}
+async function initFeedbackSystems(){if(feedbackSystems)return feedbackSystems;const mod=await import('./feedback-v1.js?r='+RELEASE_QUERY);feedbackSystems=await mod.initCncFeedback({supabase,user:session.user,readState:()=>readLocalState()?.state||null});return feedbackSystems}\nasync function initCommunitySystems(){if(communitySystems)return communitySystems;const mod=await import('./community-v1.js?r='+RELEASE_QUERY);communitySystems=await mod.initCncCommunity({supabase,user:session.user});return communitySystems}
 function installGameHooks(){if(!window.G||window.G.__onlineHooks)return;const originalClaim=window.G.claim;window.G.claim=()=>{const order=readLocalState()?.state?.order;const completed=order&&Number(order.done)>=Number(order.q);originalClaim();if(completed&&order)window.CNC_ONLINE?.recordOrderClaim?.({...order})};window.G.__onlineHooks=true}
 async function loadGame(){
   if(gameLoaded)return;
@@ -59,7 +59,7 @@ async function loadGame(){
 }
 function installCloudReset(){if(!window.G||window.G.__cloudReset)return;window.G.reset=async()=>{if(!confirm('Saison-2-Spielstand wirklich löschen? Dein Account bleibt bestehen.'))return;setCloud('Löscht …','busy');const {error}=await supabase.from(SAVE_TABLE).delete().eq('user_id',session.user.id);if(error){setCloud('Löschen fehlgeschlagen','error');alert('Cloud-Spielstand konnte nicht gelöscht werden.');return}clearLocalGame();lastUploaded='';localStorage.removeItem(SEASON_KEY);location.reload()};window.G.__cloudReset=true}
 
-async function enterGame(newSession){if(!newSession?.user)return;session=newSession;hideAuth();try{await reconcileSave();await Promise.all([initOnlineSystems(),initOperationsSystems(),initFeedbackSystems()]);await loadGame()}catch(err){console.error('CNC season2 load',err);gameLoaded=false;setCloud('Cloud-Fehler','error');$('root').innerHTML='<div class="notice"><b>Saison 2 konnte nicht geladen werden.</b><br>Bitte Verbindung prüfen und Seite neu laden.</div>'}}
+async function enterGame(newSession){if(!newSession?.user)return;session=newSession;hideAuth();try{await reconcileSave();await Promise.all([initOnlineSystems(),initOperationsSystems(),initFeedbackSystems(),initCommunitySystems()]);await loadGame()}catch(err){console.error('CNC season2 load',err);gameLoaded=false;setCloud('Cloud-Fehler','error');$('root').innerHTML='<div class="notice"><b>Saison 2 konnte nicht geladen werden.</b><br>Bitte Verbindung prüfen und Seite neu laden.</div>'}}
 async function login(email,password){setMessage('Anmeldung läuft …');const {data,error}=await supabase.auth.signInWithPassword({email,password});if(error)throw error;setMessage('');await enterGame(data.session)}
 async function register(email,password){setMessage('Account wird erstellt …');const {data,error}=await supabase.auth.signUp({email,password});if(error)throw error;if(data.session){setMessage('');await enterGame(data.session)}else{setAuthMode('login');setMessage('Registrierung erstellt. Bitte bestätige die E-Mail und melde dich danach an.','success')}}
 function setAuthMode(mode){const registerMode=mode==='register';$('authTitle').textContent=registerMode?'Account erstellen':'Anmelden';$('authSubmit').textContent=registerMode?'REGISTRIEREN':'ANMELDEN';$('authSwitch').textContent=registerMode?'ZURÜCK ZUR ANMELDUNG':'NEUEN ACCOUNT REGISTRIEREN';$('authForm').dataset.mode=registerMode?'register':'login';setMessage('')}
