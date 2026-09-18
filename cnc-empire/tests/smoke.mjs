@@ -43,8 +43,9 @@ const required=[
   "player_profiles_s2",
   'const BUY_RATE=1.22;',
   'auto()*sec*.10',
-  "['operations','👥','Betrieb']",
-  "['online','🌐','Online']"
+  "['operations','🏭','Betrieb']",
+  "['online','🌐','Online']",
+  "['community','👥','Community']"
 ];
 for(const marker of required){if(!game.includes(marker))fail(`Kernfunktion/Invariante fehlt: ${marker}`);ok(`Kernmarker ${marker}`)}
 
@@ -100,7 +101,7 @@ async function runRuntimeSmoke(){
   if(!window.G)fail('window.G wurde beim Start nicht erzeugt');
   if(!window.CNC_GAME_BRIDGE)fail('CNC_GAME_BRIDGE wurde beim Start nicht erzeugt');
   if(!env.getElement('root').innerHTML.includes('CNC EMPIRE'))fail('Werkstatt-UI wurde nicht gerendert');
-  if(!env.getElement('nav').innerHTML.includes('Betrieb')||!env.getElement('nav').innerHTML.includes('Online'))fail('Erweiterte Navigation wurde nicht gerendert');
+  if(!env.getElement('nav').innerHTML.includes('Betrieb')||!env.getElement('nav').innerHTML.includes('Online')||!env.getElement('nav').innerHTML.includes('Community'))fail('Erweiterte Navigation wurde nicht gerendert');
   ok('Spielkern startet und rendert die Hauptnavigation');
 
   let state=window.CNC_GAME_BRIDGE.getState();
