@@ -1,5 +1,6 @@
 let tab='shop',duel=null,onlineBusy=false,lastSync=0;
-const euro=n=>new Intl.NumberFormat('de-DE',{style:'currency',currency:'EUR',maximumFractionDigits:Math.abs(Number(n)||0)<100?2:0}).format(Number(n)||0);
+const euro=n=>{const v=Number(n)||0;if(s.moneyDisplay==='scientific'&&Math.abs(v)>=1000000){const exp=Math.floor(Math.log10(Math.abs(v)));const mant=v/Math.pow(10,exp);return new Intl.NumberFormat('de-DE',{maximumFractionDigits:2}).format(mant)+'e'+exp+' €'}return new Intl.NumberFormat('de-DE',{style:'currency',currency:'EUR',maximumFractionDigits:Math.abs(v)<100?2:0}).format(v)};
+window.CNC_FORMAT_MONEY=euro;
 const num=n=>new Intl.NumberFormat('de-DE',{maximumFractionDigits:0}).format(Number(n)||0);
 function save(){s.last=Date.now();localStorage.setItem(K,JSON.stringify(s))}
 function prestigeRequirement(){return Math.round(10000000*Math.pow(1.75,s.run||0))}
