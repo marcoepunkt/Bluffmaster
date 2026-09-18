@@ -24,6 +24,13 @@ const starUpgrades={
   night:{name:'Nachtschicht',icon:'🌙',desc:'+30 Minuten Offline-Produktion je Stufe',max:8,base:1,step:1},
   planning:{name:'Disposition',icon:'📋',desc:'+1 Angebot in der Auftragsbörse je Stufe',max:2,base:3,step:2}
 };
+const staffExpansionRules={
+  operator:{name:'Maschinenbediener',icon:'👷',baseMax:10,costs:[1,2,3,4]},
+  setter:{name:'Einrichter',icon:'🔧',baseMax:8,costs:[2,3,4]},
+  programmer:{name:'CNC-Programmierer',icon:'💻',baseMax:6,costs:[2,3,5]},
+  quality:{name:'Qualitätssicherung',icon:'📏',baseMax:8,costs:[2,3,4]},
+  master:{name:'Meister',icon:'⭐',baseMax:4,costs:[4,6]}
+};
 const materials=['1.4404','42CrMo4','Al 7075','1.4301','POM-C','1.4122','1.4305','C55E','Al 6082','1.4021','PE-HD','PET'];
 const jobNames=['Präzisionswellen','Flanschserie','Hydraulikhülsen','Distanzringe','Spindelmuttern','Ventilsitze','Führungsbuchsen','Antriebszapfen','Sensorhülsen','Kupplungsnaben','Düsenkörper','Lagerdeckel','Gewinderinge','Kolbenstangen','Adapterflansche','Spannhülsen'];
 const orderTypes=[
@@ -45,13 +52,15 @@ const fresh=()=>({
   name:'Meine Werkstatt',money:120,lifetime:120,runRevenue:120,week:0,weekKey:weekKey(),prestige:0,run:0,tap:1,
   m:{manual:1,cnc:0,bar:0,turnmill:0,robot:0,lights:0,swiss:0,grind:0,fiveaxis:0,fms:0,smart:0},
   friendCodes:[],friends:[],last:Date.now(),order:null,offers:[],duelBest:0,contractStreak:0,
-  friendCode:'',playerSecret:'',onlineRegistered:false,buyMode:'1',moneyDisplay:'standard',starShop:{process:0,tooling:0,sales:0,night:0,planning:0},starsSpent:0
+  friendCode:'',playerSecret:'',onlineRegistered:false,buyMode:'1',moneyDisplay:'standard',starShop:{process:0,tooling:0,sales:0,night:0,planning:0},staffExpansion:{operator:0,setter:0,programmer:0,quality:0,master:0},starsSpent:0
 });
 let raw={};
 try{raw=JSON.parse(localStorage.getItem(K)||localStorage.getItem(OLDK)||'{}')}catch{}
 let s={...fresh(),...raw};
 s.m={...fresh().m,...(raw.m||{})};
 s.starShop={...fresh().starShop,...(raw.starShop||{})};
+s.staffExpansion={...fresh().staffExpansion,...(raw.staffExpansion||{})};
+for(const [id,rule] of Object.entries(staffExpansionRules))s.staffExpansion[id]=Math.max(0,Math.min(rule.costs.length,Math.floor(Number(s.staffExpansion[id])||0)));
 if(!Array.isArray(s.friendCodes))s.friendCodes=[];
 if(!Array.isArray(s.friends))s.friends=[];
 if(!Array.isArray(s.offers))s.offers=[];
