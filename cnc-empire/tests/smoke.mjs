@@ -34,6 +34,8 @@ const required=[
   'function prestige()',
   'function prestigeRequirement()',
   'function prestigeGain()',
+  'moneyDisplay',
+  'window.CNC_FORMAT_MONEY=euro',
   'function orderMarketMult(mat)',
   'function render()',
   'window.G=',
@@ -103,8 +105,17 @@ async function runRuntimeSmoke(){
   if(!env.getElement('root').innerHTML.includes('CNC EMPIRE'))fail('Werkstatt-UI wurde nicht gerendert');
   if(!env.getElement('nav').innerHTML.includes('Betrieb')||!env.getElement('nav').innerHTML.includes('Online')||!env.getElement('nav').innerHTML.includes('Community'))fail('Erweiterte Navigation wurde nicht gerendert');
   ok('Spielkern startet und rendert die Hauptnavigation');
-
   let state=window.CNC_GAME_BRIDGE.getState();
+  state.moneyDisplay='scientific';
+  window.G.tab('profile');
+  if(!env.getElement('root').innerHTML.includes('Kompakte Geldanzeige'))fail('Profil enthält keine Geldanzeige-Einstellung');
+  const sci=window.CNC_GAME_BRIDGE.formatMoney(1250000000000);
+  if(sci!=='1,25e12 €')fail('Wissenschaftliche Geldanzeige formatiert 1,25e12 nicht korrekt: '+sci);
+  window.G.moneyDisplay(false);
+  if(window.CNC_GAME_BRIDGE.getState().moneyDisplay!=='standard')fail('Geldanzeige lässt sich nicht zurück auf Standard stellen');
+  ok('Profil-Schalter und wissenschaftliche Geldanzeige funktionieren');
+
+  state=window.CNC_GAME_BRIDGE.getState();
   const cashBefore=state.money;
   window.G.tap();
   state=window.CNC_GAME_BRIDGE.getState();
