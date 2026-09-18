@@ -13,7 +13,7 @@ for(let i=1;i<=7;i++){
   parts.push(text);
   ok(`v3part${i}.txt vorhanden`);
 }
-const expectedStarts=['(()=>{','let tab=','function rerollOffers','async function syncOnline','function starShop','function board','function render'];
+const expectedStarts=['(()=>{','let tab=','function rerollOffers','async function syncOnline','function staffExpansionShop','function board','function render'];
 for(let i=0;i<parts.length;i++){
   if(!parts[i].trimStart().startsWith(expectedStarts[i]))fail(`v3part${i+1}.txt beginnt nicht an einer sauberen Funktionsgrenze`);
   ok(`v3part${i+1}.txt startet sauber`);
