@@ -159,6 +159,15 @@ async function runRuntimeSmoke(){
   window.G.acceptOffer(0);
   state=window.CNC_GAME_BRIDGE.getState();
   if(!state.order)fail('Auftrag konnte nicht angenommen werden');
+  state.order.acceptedAt=Date.now()-3*3600*1000;
+  state.offlineSince=Date.now()-2*3600*1000;
+  const acceptedBeforePause=state.order.acceptedAt;
+  const paused=window.CNC_GAME_BRIDGE.settleOffline();
+  state=window.CNC_GAME_BRIDGE.getState();
+  const shifted=state.order.acceptedAt-acceptedBeforePause;
+  if(Math.abs(paused.pausedOrderMs-2*3600*1000)>1500)fail('Offline-Zeit pausiert Auftragsfrist nicht korrekt: '+paused.pausedOrderMs);
+  if(Math.abs(shifted-2*3600*1000)>1500)fail('acceptedAt wurde nicht um die Hintergrundzeit verschoben: '+shifted);
+  ok('Hintergrundzeit pausiert aktive Auftragsfrist für die Liefertreue');
   const doneBefore=state.order.done;
   window.G.tap();
   state=window.CNC_GAME_BRIDGE.getState();
