@@ -13,10 +13,11 @@ window.G={
   moneyDisplay:on=>{s.moneyDisplay=on?'scientific':'standard';save();window.CNC_BALANCE_BAR?.update?.();render();toast(on?'Kompakte Geldanzeige aktiviert':'Normale Geldanzeige aktiviert')},
   reset:()=>{if(confirm('Spielstand wirklich löschen? Dein Freundescode geht dabei ebenfalls verloren.')){localStorage.removeItem(K);localStorage.removeItem(OLDK);location.reload()}}
 };
-window.CNC_GAME_BRIDGE={getState:()=>s,partRate:()=>partRate(),formatMoney:n=>euro(n),spend:v=>{v=Math.max(0,Number(v)||0);if(s.money<v)return false;s.money-=v;save();return true},earn:v=>{v=Math.max(0,Number(v)||0);if(v>0){add(v);save()}},save:()=>save(),render:()=>render()};
+window.CNC_GAME_BRIDGE={getState:()=>s,partRate:()=>partRate(),formatMoney:n=>euro(n),beginOffline:()=>beginOffline(),settleOffline:()=>offline(),spend:v=>{v=Math.max(0,Number(v)||0);if(s.money<v)return false;s.money-=v;save();return true},earn:v=>{v=Math.max(0,Number(v)||0);if(v>0){add(v);save()}},save:()=>save(),render:()=>render()};
 offline();render();ensureOnline().then(()=>{render();syncOnline(true);loadFriends()});
-setInterval(()=>{if(!duel){const v=auto();if(v){add(v);if(s.order)s.order.done=Math.min(s.order.q,s.order.done+partRate());save();render()}syncOnline()}},1000);
-document.addEventListener('visibilitychange',()=>{if(document.hidden)syncOnline(true);else window.CNC_COMMUNITY?.refresh?.().then(()=>render())});
+setInterval(()=>{if(!duel&&!document.hidden){const v=auto();if(v){add(v);if(s.order)s.order.done=Math.min(s.order.q,s.order.done+partRate());save();render()}syncOnline()}},1000);
+document.addEventListener('visibilitychange',()=>{if(document.hidden){beginOffline();syncOnline(true)}else{offline();render();window.CNC_COMMUNITY?.refresh?.().then(()=>render())}});
 setInterval(()=>{if(!document.hidden&&navigator.onLine)window.CNC_COMMUNITY?.refresh?.().then(()=>render())},60000);
 window.addEventListener('online',()=>{toast('Wieder online');ensureOnline().then(()=>loadFriends());window.CNC_COMMUNITY?.refresh?.().then(()=>render())});
+window.addEventListener('pagehide',()=>beginOffline());
 })();
