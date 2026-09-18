@@ -1,5 +1,5 @@
 let sb=null,user=null,readState=()=>null;
-const S={items:[],isAdmin:false,busy:false,message:'',error:''};
+const S={items:[],voteCounts:{},myVotes:[],isAdmin:false,busy:false,message:'',error:'',filter:'all'};
 
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function date(iso){try{return new Intl.DateTimeFormat('de-DE',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}).format(new Date(iso))}catch{return '—'}}
@@ -7,9 +7,35 @@ function statusLabel(status){return status==='implemented'?'Umgesetzt':status===
 function statusIcon(status){return status==='implemented'?'✅':status==='rejected'?'❌':'🟡'}
 function rerender(){window.CNC_GAME_BRIDGE?.render?.()}
 function setMessage(text,error=false){S.message=error?'':text;S.error=error?text:''}
+function voteCount(id){return Number(S.voteCounts[id]||0)}
+function hasVoted(id){return S.myVotes.includes(id)}
+function setFilter(filter){if(!['all','open','implemented','rejected'].includes(filter))return;S.filter=filter;rerender()}
 
-function suggestionHtml(item,admin=false){
+function sortedItems(items=S.items){
+  const rank={open:0,implemented:1,rejected:2};
+  return [...items].sort((a,b)=>{
+    const sr=(rank[a.status]??9)-(rank[b.status]??9);
+    if(sr)return sr;
+    if(a.status==='open'){
+      const vr=voteCount(b.id)-voteCount(a.id);
+      if(vr)return vr;
+    }
+    return new Date(b.created_at).getTime()-new Date(a.created_at).getTime();
+  });
+}
+
+function voteHtml(item){
+  const count=voteCount(item.id);
+  if(item.status!=='open')return '<div class="feedbackVoteClosed">👍 '+count+' '+(count===1?'Vote':'Votes')+'</div>';
+  const voted=hasVoted(item.id);
+  return '<button class="feedbackVoteBtn '+(voted?'active':'')+'" '+(S.busy?'disabled':'')+' onclick="CNC_FEEDBACK.toggleVote(\''+esc(item.id)+'\')">'
+    +(voted?'👍 Vote entfernen':'👍 Voten')+' <span>'+count+'</span></button>';
+}
+
+function suggestionHtml(item,admin=false,rank=null){
   const note=item.admin_note?'<div class="feedbackNote">Admin: '+esc(item.admin_note)+'</div>':'';
+  const own=item.user_id===user?.id?'<span class="feedbackOwnTag">DEIN VORSCHLAG</span>':'';
+  const place=rank?'<span class="feedbackRank">#'+rank+'</span>':'';
   let actions='';
   if(admin){
     const done=item.status==='implemented'?'':'<button class="btn mini" onclick="CNC_FEEDBACK.setStatus(\''+esc(item.id)+'\',\'implemented\')">✅ Umgesetzt</button>';
@@ -18,37 +44,61 @@ function suggestionHtml(item,admin=false){
     actions='<div class="feedbackActions">'+done+reject+reopen+'</div>';
   }
   return '<div class="feedbackEntry">'
-    +'<div class="feedbackEntryHead"><div><div class="name">'+esc(item.title)+'</div><div class="muted">'+esc(item.player_name||'Werkstatt')+' · '+date(item.created_at)+'</div></div>'
+    +'<div class="feedbackEntryHead"><div class="feedbackTitleBlock"><div class="feedbackTitleLine">'+place+'<div class="name">'+esc(item.title)+'</div>'+own+'</div><div class="muted">'+esc(item.player_name||'Werkstatt')+' · '+date(item.created_at)+'</div></div>'
     +'<span class="feedbackStatus '+esc(item.status)+'">'+statusIcon(item.status)+' '+statusLabel(item.status)+'</span></div>'
-    +'<div class="feedbackDescription">'+esc(item.description)+'</div>'+note+actions+'</div>';
+    +'<div class="feedbackDescription">'+esc(item.description)+'</div>'
+    +'<div class="feedbackEntryFoot">'+voteHtml(item)+'</div>'+note+actions+'</div>';
+}
+
+function filterButtons(){
+  const entries=[['all','Alle'],['open','Offen'],['implemented','Umgesetzt'],['rejected','Abgelehnt']];
+  return '<div class="feedbackFilters">'+entries.map(([key,label])=>'<button class="feedbackFilter '+(S.filter===key?'active':'')+'" onclick="CNC_FEEDBACK.setFilter(\''+key+'\')">'+label+'</button>').join('')+'</div>';
 }
 
 function render(){
-  const own=S.items.filter(x=>x.user_id===user?.id);
-  const ownHtml=own.length?own.map(x=>suggestionHtml(x,false)).join(''):'<div class="muted">Du hast noch keinen Vorschlag eingereicht.</div>';
   const msg=S.error?'<div class="feedbackMessage error">'+esc(S.error)+'</div>':S.message?'<div class="feedbackMessage ok">'+esc(S.message)+'</div>':'';
   const form='<div class="section">💡 Verbesserungsvorschläge</div><div class="card item feedbackCard">'
-    +'<div class="name">Idee fürs Spiel einreichen</div><div class="desc">Was sollen wir an CNC EMPIRE verbessern oder ergänzen?</div>'
+    +'<div class="name">Idee fürs Spiel einreichen</div><div class="desc">Dein Vorschlag ist für alle Spieler sichtbar. Gute Ideen können von der Community hochgevotet werden.</div>'
     +'<input id="feedbackTitle" class="field" maxlength="80" placeholder="Kurzer Titel">'
     +'<textarea id="feedbackDescription" class="field feedbackTextArea" maxlength="1200" placeholder="Beschreibe deinen Vorschlag möglichst konkret."></textarea>'
-    +'<button class="btn feedbackSubmit" '+(S.busy?'disabled':'')+' onclick="CNC_FEEDBACK.submitFromUI()">Vorschlag senden</button>'+msg+'</div>'
-    +'<div class="section">Meine Vorschläge</div><div class="card item feedbackList">'+ownHtml+'</div>';
-  if(!S.isAdmin)return '<div id="feedbackSection">'+form+'</div>';
-  const allHtml=S.items.length?S.items.map(x=>suggestionHtml(x,true)).join(''):'<div class="muted">Noch keine Spielervorschläge vorhanden.</div>';
+    +'<button class="btn feedbackSubmit" '+(S.busy?'disabled':'')+' onclick="CNC_FEEDBACK.submitFromUI()">Vorschlag senden</button>'+msg+'</div>';
+
+  const popular=sortedItems(S.items.filter(x=>x.status==='open')).slice(0,5);
+  const popularHtml=popular.length?popular.map((x,i)=>suggestionHtml(x,S.isAdmin,i+1)).join(''):'<div class="muted">Noch keine offenen Community-Vorschläge.</div>';
+
+  const filtered=sortedItems(S.filter==='all'?S.items:S.items.filter(x=>x.status===S.filter));
+  const allHtml=filtered.length?filtered.map(x=>suggestionHtml(x,S.isAdmin)).join(''):'<div class="muted">Für diesen Filter gibt es noch keine Vorschläge.</div>';
+  const openCount=S.items.filter(x=>x.status==='open').length;
+
+  const admin=S.isAdmin?'<div class="section">🛠️ Admin-Verwaltung</div><div class="card item feedbackAdminInfo"><div class="feedbackAdminTag">ADMIN · '+openCount+' offen · '+S.items.length+' insgesamt</div><div class="desc">Die Status-Buttons stehen direkt an jedem Vorschlag. Nur dein Admin-Konto kann sie verwenden.</div></div>':'';
+
   return '<div id="feedbackSection">'+form
-    +'<div class="section">🛠️ Vorschläge verwalten</div><div class="card item feedbackList"><div class="feedbackAdminTag">ADMIN · '+S.items.length+' Einträge</div>'+allHtml+'</div></div>';
+    +'<div class="section">🔥 Beliebte Vorschläge</div><div class="card item feedbackList">'+popularHtml+'</div>'
+    +'<div class="section">📋 Alle Vorschläge</div>'+filterButtons()+'<div class="card item feedbackList">'+allHtml+'</div>'
+    +admin+'</div>';
 }
 
 async function refresh(){
   if(!sb||!user)return;
-  const [adminRes,itemRes]=await Promise.all([
+  const [adminRes,itemRes,voteRes]=await Promise.all([
     sb.from('feedback_admins_s2').select('user_id').eq('user_id',user.id).maybeSingle(),
-    sb.from('feedback_suggestions_s2').select('id,user_id,player_name,title,description,status,admin_note,created_at,updated_at').order('created_at',{ascending:false}).limit(200)
+    sb.from('feedback_suggestions_s2').select('id,user_id,player_name,title,description,status,admin_note,created_at,updated_at').limit(300),
+    sb.from('feedback_votes_s2').select('suggestion_id,user_id').limit(10000)
   ]);
   if(adminRes.error)throw adminRes.error;
   if(itemRes.error)throw itemRes.error;
+  if(voteRes.error)throw voteRes.error;
   S.isAdmin=!!adminRes.data;
   S.items=Array.isArray(itemRes.data)?itemRes.data:[];
+  const counts={};
+  const mine=[];
+  for(const vote of (Array.isArray(voteRes.data)?voteRes.data:[])){
+    if(!vote?.suggestion_id)continue;
+    counts[vote.suggestion_id]=(counts[vote.suggestion_id]||0)+1;
+    if(vote.user_id===user.id)mine.push(vote.suggestion_id);
+  }
+  S.voteCounts=counts;
+  S.myVotes=mine;
 }
 
 async function submitFromUI(){
@@ -64,10 +114,30 @@ async function submitFromUI(){
     const {error}=await sb.from('feedback_suggestions_s2').insert({user_id:user.id,player_name:playerName,title:title.slice(0,80),description:description.slice(0,1200)});
     if(error)throw error;
     await refresh();
-    setMessage('Danke! Dein Vorschlag ist jetzt auf der Liste.');
+    setMessage('Danke! Dein Vorschlag ist jetzt für die Community sichtbar.');
   }catch(err){
     console.error('CNC feedback submit',err);
     setMessage('Vorschlag konnte nicht gespeichert werden. Bitte erneut versuchen.',true);
+  }finally{
+    S.busy=false;rerender();
+  }
+}
+
+async function toggleVote(id){
+  if(S.busy||!user)return;
+  const item=S.items.find(x=>x.id===id);
+  if(!item||item.status!=='open')return;
+  S.busy=true;setMessage(hasVoted(id)?'Vote wird entfernt …':'Vote wird gespeichert …');rerender();
+  try{
+    let result;
+    if(hasVoted(id))result=await sb.from('feedback_votes_s2').delete().eq('suggestion_id',id).eq('user_id',user.id);
+    else result=await sb.from('feedback_votes_s2').insert({suggestion_id:id,user_id:user.id});
+    if(result.error)throw result.error;
+    await refresh();
+    setMessage(hasVoted(id)?'Dein Vote wurde gespeichert.':'Dein Vote wurde entfernt.');
+  }catch(err){
+    console.error('CNC feedback vote',err);
+    setMessage('Vote konnte nicht geändert werden. Bitte erneut versuchen.',true);
   }finally{
     S.busy=false;rerender();
   }
@@ -97,7 +167,7 @@ async function setStatus(id,status){
 
 export async function initCncFeedback(ctx){
   sb=ctx.supabase;user=ctx.user;readState=ctx.readState||(()=>null);
-  const api={render,refresh,submitFromUI,setStatus,state:S};
+  const api={render,refresh,submitFromUI,toggleVote,setStatus,setFilter,state:S};
   window.CNC_FEEDBACK=api;
   try{await refresh()}catch(err){console.error('CNC feedback load',err);setMessage('Verbesserungsvorschläge konnten nicht geladen werden.',true)}
   return api;
