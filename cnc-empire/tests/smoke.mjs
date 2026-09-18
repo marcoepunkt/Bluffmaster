@@ -150,6 +150,7 @@ async function runRuntimeSmoke(){
   state=window.CNC_GAME_BRIDGE.getState();
   if(state.staffExpansion.operator!==slotBefore+1)fail('Prestige-Personalplatz wurde nicht freigeschaltet');
   if(state.starsSpent!==1)fail('Erster Maschinenbediener-Platz muss genau 1 Meisterstern kosten');
+  window.G.tab('shop');
   if(!env.getElement('root').innerHTML.includes('Personalentwicklung'))fail('Personalentwicklung wird im Meisterzentrum nicht angezeigt');
   ok('Prestige-Personalplatz kostet korrekt Sterne und wird dauerhaft gespeichert');
 
