@@ -1,32 +1,64 @@
 let sb=null,user=null;
-const S={news:[],polls:[],options:[],votes:[],isAdmin:false,busy:false,message:'',error:''};
+const S={news:[],polls:[],options:[],votes:[],readNewsIds:[],isAdmin:false,busy:false,message:'',error:''};
 
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function date(iso){try{return new Intl.DateTimeFormat('de-DE',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}).format(new Date(iso))}catch{return '—'}}
 function rerender(){window.CNC_GAME_BRIDGE?.render?.()}
 function setMessage(text,error=false){S.message=error?'':text;S.error=error?text:''}
 function messageHtml(){return S.error?'<div class="communityMessage error">'+esc(S.error)+'</div>':S.message?'<div class="communityMessage ok">'+esc(S.message)+'</div>':''}
+function unreadNews(){return S.news.filter(n=>n.published!==false&&!S.readNewsIds.includes(n.id))}
+function unreadCount(){return unreadNews().length}
+function renderNewsAlert(){
+  const count=unreadCount();
+  if(!count)return '';
+  return '<button class="communityNewsAlert" onclick="G.openNews()"><span class="communityNewsAlertIcon">📢</span><span class="communityNewsAlertText"><b>'+count+' neue '+(count===1?'News':'News')+'</b><small>Es gibt Neuigkeiten in CNC Empire. Antippen zum Lesen.</small></span><span class="communityNewsAlertArrow">›</span></button>';
+}
 
 async function refresh(){
   if(!sb||!user)return;
-  const [adminRes,newsRes,pollsRes,optionsRes,votesRes]=await Promise.all([
+  const [adminRes,newsRes,pollsRes,optionsRes,votesRes,readsRes]=await Promise.all([
     sb.from('feedback_admins_s2').select('user_id').eq('user_id',user.id).maybeSingle(),
     sb.from('community_news_s2').select('id,title,body,published,created_at,updated_at,created_by').order('created_at',{ascending:false}).limit(50),
     sb.from('community_polls_s2').select('id,question,status,created_at,updated_at,created_by').order('created_at',{ascending:false}).limit(50),
     sb.from('community_poll_options_s2').select('id,poll_id,label,position').order('position',{ascending:true}).limit(500),
-    sb.from('community_poll_votes_s2').select('poll_id,option_id,user_id').limit(10000)
+    sb.from('community_poll_votes_s2').select('poll_id,option_id,user_id').limit(10000),
+    sb.from('community_news_reads_s2').select('news_id').eq('user_id',user.id).limit(500)
   ]);
-  for(const result of [adminRes,newsRes,pollsRes,optionsRes,votesRes])if(result.error)throw result.error;
+  for(const result of [adminRes,newsRes,pollsRes,optionsRes,votesRes,readsRes])if(result.error)throw result.error;
   S.isAdmin=!!adminRes.data;
   S.news=Array.isArray(newsRes.data)?newsRes.data:[];
   S.polls=Array.isArray(pollsRes.data)?pollsRes.data:[];
   S.options=Array.isArray(optionsRes.data)?optionsRes.data:[];
   S.votes=Array.isArray(votesRes.data)?votesRes.data:[];
+  S.readNewsIds=(Array.isArray(readsRes.data)?readsRes.data:[]).map(x=>x.news_id).filter(Boolean);
 }
 
 function newsItem(n){
+  const fresh=!S.readNewsIds.includes(n.id)?'<span class="communityNewTag">NEU</span>':'';
   const admin=S.isAdmin?'<button class="btn danger mini" onclick="CNC_COMMUNITY.deleteNews(\''+esc(n.id)+'\')">Löschen</button>':'';
-  return '<article class="communityNewsItem"><div class="communityItemHead"><div><div class="name">'+esc(n.title)+'</div><div class="muted">'+date(n.created_at)+'</div></div>'+admin+'</div><div class="communityBody">'+esc(n.body)+'</div></article>';
+  return '<article class="communityNewsItem '+(fresh?'unread':'')+'"><div class="communityItemHead"><div><div class="communityNewsTitle"><div class="name">'+esc(n.title)+'</div>'+fresh+'</div><div class="muted">'+date(n.created_at)+'</div></div>'+admin+'</div><div class="communityBody">'+esc(n.body)+'</div></article>';
+}
+
+async function markNewsRead(){
+  const ids=unreadNews().map(n=>n.id);
+  if(!ids.length)return 0;
+  const readAt=new Date().toISOString();
+  const rows=ids.map(news_id=>({news_id,user_id:user.id,read_at:readAt}));
+  const {error}=await sb.from('community_news_reads_s2').upsert(rows,{onConflict:'news_id,user_id'});
+  if(error)throw error;
+  S.readNewsIds=[...new Set([...S.readNewsIds,...ids])];
+  return ids.length;
+}
+
+async function openNews(){
+  if(!sb||!user)return;
+  try{
+    await refresh();
+    await markNewsRead();
+  }catch(err){
+    console.error('CNC community read news',err);
+    setMessage('Lesestatus der News konnte nicht gespeichert werden.',true);
+  }
 }
 
 function renderNews(){
@@ -158,7 +190,7 @@ async function deletePoll(id){
 
 export async function initCncCommunity(ctx){
   sb=ctx.supabase;user=ctx.user;
-  const api={renderNews,renderPolls,refresh,publishNewsFromUI,deleteNews,createPollFromUI,votePoll,setPollStatus,deletePoll,state:S};
+  const api={renderNews,renderPolls,renderNewsAlert,unreadCount,openNews,markNewsRead,refresh,publishNewsFromUI,deleteNews,createPollFromUI,votePoll,setPollStatus,deletePoll,state:S};
   window.CNC_COMMUNITY=api;
   try{await refresh()}catch(err){console.error('CNC community load',err);setMessage('Community-News und Umfragen konnten nicht geladen werden.',true)}
   return api;

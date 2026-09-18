@@ -1,11 +1,12 @@
 function render(){
   document.getElementById('root').innerHTML=`<div class="top"><div class="brand">CNC EMPIRE<small>Span zu Cash · Expansion</small></div><div class="pill">★ ${availableStars()} / ${s.prestige}</div></div>${tab==='shop'?shop():tab==='orders'?orders():tab==='operations'?(window.CNC_OPERATIONS?.render?.()||'<div class="notice">Betrieb wird geladen …</div>'):tab==='board'?board():tab==='online'?(window.CNC_ONLINE?.render?.()||'<div class="notice">Online-Systeme laden …</div>'):tab==='community'?community():profile()}`;
-  const n=[['shop','⚙️','Werkstatt'],['orders','📋','Aufträge'],['operations','🏭','Betrieb'],['board','🏆','Rangliste'],['online','🌐','Online'],['community','👥','Community'],['profile','👤','Profil']];document.getElementById('nav').innerHTML=n.map(x=>`<button class="${tab===x[0]?'on':''}" onclick="G.tab('${x[0]}')"><span>${x[1]}</span>${x[2]}</button>`).join('')
+  const unreadNews=window.CNC_COMMUNITY?.unreadCount?.()||0;const n=[['shop','⚙️','Werkstatt'],['orders','📋','Aufträge'],['operations','🏭','Betrieb'],['board','🏆','Rangliste'],['online','🌐','Online'],['community','👥','Community'],['profile','👤','Profil']];document.getElementById('nav').innerHTML=n.map(x=>`<button class="${tab===x[0]?'on':''}" onclick="G.tab('${x[0]}')">${x[0]==='community'&&unreadNews?'<b class="communityNavBadge">'+(unreadNews>99?'99+':unreadNews)+'</b>':''}<span>${x[1]}</span>${x[2]}</button>`).join('')
 }
 window.G={
   tap,buy,setBuyMode,acceptOffer,rerollOffers,orderNew,claim,buyStar,prestige,copyCode,addFriend,removeFriend,startDuel,
   refreshFriends:()=>loadFriends(true),
-  community:x=>{if(['suggestions','news','polls'].includes(x)){communityTab=x;render();if(x==='suggestions')window.CNC_FEEDBACK?.refresh?.().then(()=>render());else window.CNC_COMMUNITY?.refresh?.().then(()=>render())}},
+  community:x=>{if(['suggestions','news','polls'].includes(x)){communityTab=x;render();if(x==='suggestions')window.CNC_FEEDBACK?.refresh?.().then(()=>render());else if(x==='news')window.CNC_COMMUNITY?.openNews?.().then(()=>render());else window.CNC_COMMUNITY?.refresh?.().then(()=>render())}},
+  openNews:()=>{if(!duel){tab='community';communityTab='news';render();window.CNC_COMMUNITY?.openNews?.().then(()=>render())}},
   tab:x=>{if(!duel){tab=x;render();if(x==='board'||x==='profile')loadFriends();if(x==='online')window.CNC_ONLINE?.refresh?.().then(()=>render());if(x==='operations')window.CNC_OPERATIONS?.refresh?.().then(()=>render());if(x==='community'){window.CNC_FEEDBACK?.refresh?.().then(()=>render());window.CNC_COMMUNITY?.refresh?.().then(()=>render())}}},
   name:()=>{s.name=document.getElementById('nm').value.trim()||'Meine Werkstatt';save();toast('Name gespeichert');render();syncOnline(true)},
   reset:()=>{if(confirm('Spielstand wirklich löschen? Dein Freundescode geht dabei ebenfalls verloren.')){localStorage.removeItem(K);localStorage.removeItem(OLDK);location.reload()}}
