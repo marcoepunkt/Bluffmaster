@@ -14,6 +14,8 @@ for(const marker of ['Messschieber','Bügelmessschraube','Höhenmessgerät','Rau
   ok(`Quality-Invariante ${marker}`);
 }
 if(quality.includes('MutationObserver'))fail('Quality-Modul darf keinen MutationObserver verwenden');
+if(quality.includes("tab?.('operations')"))fail('Quality-Modul darf nicht automatisch zu Betrieb wechseln');
+if(quality.includes("alert(e.msg)"))fail('Qualitätsvoraussetzungen dürfen kein Browser-Alert mit Weiterleitung verwenden');
 ok('Quality-Modul arbeitet ohne MutationObserver');
 if(!index.includes('quality-systems-v1.js?r='))fail('Aktuelles Quality-Modul fehlt in index.html');
 ok('Quality-Modul ist in index.html eingebunden');
@@ -30,7 +32,7 @@ let saves=0,renders=0;
 window.CNC_GAME_BRIDGE={getState:()=>main,spend:v=>{if(main.money<v)return false;main.money-=v;return true},earn:v=>{main.money+=v},save:()=>{saves++},render:()=>{renders++}};
 window.CNC_OPERATIONS={state:{staff:{quality:4},qualitySystem:null},render:()=>'<div id="operationsSystems">Betrieb</div>',refresh:async()=>true};
 window.CNC_CUSTOMERS={decorateOffer:o=>({...o,customerId:'medical',customer:'Medizintechnik'}),recordOrderClaim:()=>{main.customerStats.medical.completed++}};
-window.G={acceptOffer:()=>true,claim:()=>true,tab:()=>true};
+let tabCalls=0;window.G={acceptOffer:()=>true,claim:()=>true,tab:()=>{tabCalls++;return true}};
 
 new Function(quality)();
 await Promise.resolve();await Promise.resolve();
@@ -54,16 +56,26 @@ if(!tagged.qualityTagged||tagged.qualityLevel!==4)fail('Medizintechnik-Auftrag b
 const eligible=window.CNC_QUALITY.offerEligibility(tagged);
 if(eligible.ok)fail('Q4-Auftrag darf mit Q2-Messraum nicht freigegeben sein');
 ok('Qualitätsstufen sperren ungeeignete Aufträge');
+main.offers=[tagged];
+window.G.acceptOffer(0);
+if(tabCalls!==0)fail('Ungeeigneter Qualitätsauftrag darf nicht automatisch zu Betrieb weiterleiten');
+ok('Qualitätsvoraussetzungen zeigen nur einen Hinweis und wechseln keinen Reiter');
 
 if(!window.CNC_QUALITY.certReady('iso9001'))fail('ISO 9001 sollte mit Q2, QS und genügend Aufträgen auditbereit sein');
 await window.CNC_QUALITY.auditCert('iso9001');
 if(!window.CNC_QUALITY.state().certs.iso9001)fail('ISO-9001-Audit setzt Zertifikat nicht aktiv');
 ok('Zertifizierungsaudit funktioniert');
 const qState=window.CNC_QUALITY.state();
-qState.pendingInspection={order:{customerId:'medical',customer:'Medizintechnik',name:'QS-Testauftrag',pay:10000,qualityLevel:2},nominal:20,tolerance:.05,measured:20.02,correct:'release',createdAt:Date.now()};
+qState.claimsSinceInspection=2;
+qState.pendingInspection=null;
+const qsOrder={...tagged,name:'QS-Testauftrag',qualityTagged:true,qualityLevel:4,acceptedAt:Date.now(),duration:60};
+window.CNC_CUSTOMERS.recordOrderClaim(qsOrder);
+if(!qState.pendingInspection)fail('Dritte geeignete Qualitätsabrechnung erzeugt keine offene QS-Prüfung');
 const inlineInspection=window.CNC_QUALITY.renderOrderInspection();
-if(!inlineInspection.includes('Qualitätsprüfung')||!inlineInspection.includes('QS-Testauftrag'))fail('Inline-QS-Karte wird für offene Prüfung nicht gerendert');
-ok('Offene QS-Prüfung wird als Auftragskarte gerendert');
+if(!inlineInspection.includes('Qualitätsprüfung')||!inlineInspection.includes('QS-Testauftrag'))fail('Neu ausgelöste QS-Prüfung ist nicht sofort als Auftragskarte verfügbar');
+ok('Neu ausgelöste QS-Prüfung erscheint ohne Reload direkt als Auftragskarte');
+if(tabCalls!==0)fail('QS-Prüfung darf keinen automatischen Reiterwechsel auslösen');
+ok('QS-Prüfung löst keinen automatischen Wechsel zu Betrieb aus');
 if(saves<1||renders<1)fail('Quality-System bindet Speichern/Rendern nicht an den Spielzustand');
 ok('Quality-System ist an Speichern und Rendern angebunden');
 
