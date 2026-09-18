@@ -62,6 +62,8 @@ function normalize(raw){
 }
 function game(){return window.CNC_GAME_BRIDGE||null}
 function totalStaff(){return Object.values(S.staff).reduce((a,b)=>a+(Number(b)||0),0)}
+function prestigeStaffSlots(id){return Math.max(0,Math.floor(Number(readState()?.staffExpansion?.[id])||0))}
+function staffMax(id){const r=ROLES[id];return r?Math.max(r.max,r.max+prestigeStaffSlots(id)):0}
 function lifetime(){return Math.max(0,Number(readState()?.lifetime)||0)}
 function runRevenue(){return Math.max(0,Number(readState()?.runRevenue)||0)}
 function chainUnlocked(){return lifetime()>=5000}
@@ -165,7 +167,7 @@ async function refresh(){await persist(true);await load();rerender()}
 
 async function hire(id){
   const r=ROLES[id];if(!r)return;
-  const lv=S.staff[id]||0;if(lv>=r.max)return alert('Diese Position ist bereits voll besetzt.');
+  const lv=S.staff[id]||0,max=staffMax(id);if(lv>=max)return alert('Diese Position ist bereits voll besetzt.');
   const cost=hireCost(id);const g=game();if(!g)return alert('Spiel wird noch geladen.');
   if(!g.spend(cost))return alert('Nicht genug Kapital für diese Einstellung.');
   S.staff[id]=lv+1;markDirty();await persist(true);rerender();
@@ -249,8 +251,8 @@ function processTick(){
 }
 
 function staffCard(id){
-  const r=ROLES[id],lv=S.staff[id]||0,cost=hireCost(id),maxed=lv>=r.max;
-  return `<div class="card item opsStaff"><div class="row"><div><div class="name">${r.icon} ${esc(r.name)}</div><div class="desc">${esc(r.desc)}</div></div><div class="opsLevel">${lv}/${r.max}</div></div><button class="btn ${maxed?'secondary':''}" ${maxed?'disabled':''} onclick="CNC_OPERATIONS.hire('${id}')">${maxed?'Voll besetzt':'Einstellen · '+money(cost)}</button></div>`;
+  const r=ROLES[id],lv=S.staff[id]||0,max=staffMax(id),extra=Math.max(0,max-r.max),cost=hireCost(id),maxed=lv>=max;
+  return `<div class="card item opsStaff"><div class="row"><div><div class="name">${r.icon} ${esc(r.name)}</div><div class="desc">${esc(r.desc)}${extra?' · +'+extra+' Prestige-Platz'+(extra===1?'':'plätze'):''}</div></div><div class="opsLevel">${lv}/${max}</div></div><button class="btn ${maxed?'secondary':''}" ${maxed?'disabled':''} onclick="CNC_OPERATIONS.hire('${id}')">${maxed?'Voll besetzt':'Einstellen · '+money(cost)}</button></div>`;
 }
 function upgradeCard(id){
   const u=UPGRADES[id],lv=S.upgrades[id]||0,cost=upgradeCost(id),maxed=lv>=u.max;
@@ -309,10 +311,14 @@ function start(){
   document.addEventListener('visibilitychange',()=>{if(document.hidden)persist(true)});
   window.addEventListener('pagehide',()=>persist(true));
 }
+function resetStaffForPrestige(){
+  for(const id of Object.keys(S.staff))S.staff[id]=0;
+  markDirty();persist(true);rerender();return true
+}
 function stop(){if(tickTimer)clearInterval(tickTimer);if(syncTimer)clearInterval(syncTimer);tickTimer=null;syncTimer=null;persist(true)}
 
 export async function initCncOperations(ctx){
   sb=ctx.supabase;user=ctx.user;readState=ctx.readState||(()=>null);await load();
-  const api={render,refresh,hire,buyUpgrade,setShift,setMaterial,buyMaterial,maintain,productionMultiplier,dashboardData,stageRates,qualityYield,get state(){return S},start,stop};
+  const api={render,refresh,hire,buyUpgrade,setShift,setMaterial,buyMaterial,maintain,productionMultiplier,dashboardData,stageRates,qualityYield,staffMax,resetStaffForPrestige,get state(){return S},start,stop};
   window.CNC_OPERATIONS=api;start();return api;
 }
