@@ -17,7 +17,7 @@ const CERT_BY_CUSTOMER={hydraulics:'iso9001',automotive:'iatf',medical:'iso13485
 const BASE_QUALITY={hydraulics:2,automotive:2,medical:4,aerospace:5};
 let hooked=false,baseRecord=null;
 const game=()=>window.CNC_GAME_BRIDGE||null,ops=()=>window.CNC_OPERATIONS||null,main=()=>game()?.getState?.()||null;
-const euro=n=>new Intl.NumberFormat('de-DE',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(Number(n)||0);
+const euro=n=>window.CNC_FORMAT_MONEY?.(n)??new Intl.NumberFormat('de-DE',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(Number(n)||0);
 const num=n=>new Intl.NumberFormat('de-DE',{maximumFractionDigits:0}).format(Number(n)||0);
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function notify(t){const e=document.createElement('div');e.className='toast';e.textContent=t;document.body.appendChild(e);setTimeout(()=>e.remove(),3000)}
