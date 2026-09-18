@@ -40,6 +40,9 @@ const required=[
   'function buyStaffSlot(id)',
   'Personalentwicklung',
   'function orderMarketMult(mat)',
+  'function beginOffline()',
+  'settleOffline:()=>offline()',
+  'if(!duel&&!document.hidden)'
   'function render()',
   'window.G=',
   'window.CNC_GAME_BRIDGE=',
@@ -131,6 +134,24 @@ async function runRuntimeSmoke(){
   state=window.CNC_GAME_BRIDGE.getState();
   if(state.m.cnc!==beforeCnc+1)fail('CNC-Maschine konnte im Runtime-Test nicht gekauft werden');
   ok('Maschinenkauf funktioniert');
+
+  const offlineMoneyBefore=state.money;
+  state.offlineSince=Date.now()-5*3600*1000;
+  const offlineRate=window.CNC_GAME_BRIDGE.partRate()*8;
+  const offlineResult=window.CNC_GAME_BRIDGE.settleOffline();
+  state=window.CNC_GAME_BRIDGE.getState();
+  const offlineDelta=state.money-offlineMoneyBefore;
+  const expectedOffline=offlineRate*3*3600*.10;
+  if(Math.abs(offlineResult.sec-3*3600)>1)fail('Offline-Zeit wird nicht auf 3 Stunden begrenzt: '+offlineResult.sec);
+  if(Math.abs(offlineDelta-expectedOffline)>2)fail('Offline-Ertrag ist falsch. Erwartet '+expectedOffline+', erhalten '+offlineDelta);
+  if(state.offlineSince!==0)fail('Offline-Zeitpunkt wird nach Auszahlung nicht zurückgesetzt');
+  ok('Offline-Ertrag wird auf drei Stunden begrenzt und mit 10 % korrekt ausgezahlt');
+
+  window.CNC_GAME_BRIDGE.beginOffline();
+  state=window.CNC_GAME_BRIDGE.getState();
+  if(!(Number(state.offlineSince)>0))fail('Hintergrundwechsel speichert keinen Offline-Startzeitpunkt');
+  window.CNC_GAME_BRIDGE.settleOffline();
+  ok('Hintergrund- und Vordergrund-Lifecycle ist angebunden');
 
   window.G.orderNew();
   state=window.CNC_GAME_BRIDGE.getState();
