@@ -1,5 +1,5 @@
 (()=>{
-  const euro=n=>new Intl.NumberFormat('de-DE',{style:'currency',currency:'EUR',maximumFractionDigits:Math.abs(Number(n)||0)<100?2:0}).format(Number(n)||0);
+  const euro=n=>window.CNC_FORMAT_MONEY?.(n)??new Intl.NumberFormat('de-DE',{style:'currency',currency:'EUR',maximumFractionDigits:Math.abs(Number(n)||0)<100?2:0}).format(Number(n)||0);
   let last='';
   function update(){
     const bar=document.getElementById('persistentBalanceBar');
