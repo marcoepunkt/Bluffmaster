@@ -1,0 +1,41 @@
+name: CNC Empire Release Cache
+
+on:
+  push:
+    branches: [cnc-empire-play]
+    paths:
+      - 'cnc-empire/**'
+      - '.github/workflows/cnc-empire-release.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  purge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - name: Purge raw.githack changed files
+        shell: bash
+        run: |
+          set -euo pipefail
+          before='${{ github.event.before }}'
+          if [[ -z "$before" || "$before" =~ ^0+$ ]]; then
+            find cnc-empire -type f -print > /tmp/changed.txt
+          else
+            git diff --name-only "$before" "$GITHUB_SHA" -- cnc-empire > /tmp/changed.txt || true
+          fi
+          printf '%s\n' cnc-empire/index.html cnc-empire/release.json cnc-empire/update-manager-v1.js cnc-empire/sw-v1.js >> /tmp/changed.txt
+          sort -u /tmp/changed.txt -o /tmp/changed.txt
+          while IFS= read -r file; do
+            [[ -z "$file" ]] && continue
+            url="https://raw.githack.com/$GITHUB_REPOSITORY/$GITHUB_REF_NAME/$file"
+            encoded=$(python3 -c 'import sys,urllib.parse;print(urllib.parse.quote(sys.argv[1],safe=""))' "$url")
+            echo "Purging $file"
+            curl -fsS --retry 3 --retry-delay 2 -X DELETE "https://raw.githack.com/purge?url=$encoded" >/dev/null
+          done < /tmp/changed.txt

@@ -4,7 +4,8 @@ const OWNER_KEY='cncEmpireCloudOwnerV2';
 const SEASON_KEY='cncEmpireSeason';
 const CURRENT_SEASON='2';
 const SAVE_TABLE='player_saves_s2';
-const GAME_PART_VERSION='11';
+const GAME_PART_VERSION='12';
+const RELEASE_QUERY=encodeURIComponent(window.CNC_RELEASE||'s2');
 const CLOUD_INTERVAL_MS=5000;
 let supabase=null,session=null,gameLoaded=false,cloudTimer=null,cloudBusy=false,lastUploaded='',onlineSystems=null,operationsSystems=null,feedbackSystems=null;
 const $=id=>document.getElementById(id);
@@ -20,7 +21,7 @@ function clearLocalGame(){localStorage.removeItem(GAME_KEY);localStorage.removeI
 function prepareSeasonLocal(userId){const season=localStorage.getItem(SEASON_KEY);const owner=localStorage.getItem(OWNER_KEY);if(season===CURRENT_SEASON&&owner===userId)return;const legacy=(!owner||owner===userId)?readLocalState():null;const identity=identityOnly(legacy?.state);clearLocalGame();if(Object.keys(identity).length)writeLocalState(identity);localStorage.setItem(SEASON_KEY,CURRENT_SEASON);localStorage.setItem(OWNER_KEY,userId)}
 
 async function readConfig(){
-  const text=await fetch('./v3part1.txt?v='+GAME_PART_VERSION,{cache:'no-store'}).then(r=>{if(!r.ok)throw new Error('Spielkonfiguration konnte nicht geladen werden.');return r.text()});
+  const text=await fetch('./v3part1.txt?r='+RELEASE_QUERY+'&gp='+GAME_PART_VERSION,{cache:'no-store'}).then(r=>{if(!r.ok)throw new Error('Spielkonfiguration konnte nicht geladen werden.');return r.text()});
   const url=text.match(/const API='(https:\/\/[^']+)\/rest\/v1\/player_profiles_s2'/)?.[1];
   const key=text.match(/const APIKEY='([^']+)'/)?.[1];
   if(!url||!key)throw new Error('Online-Konfiguration fehlt.');
@@ -32,21 +33,22 @@ async function uploadState(state){if(!session?.user||cloudBusy||!state||typeof s
 async function reconcileSave(){prepareSeasonLocal(session.user.id);setCloud('Saison 2 wird geladen …','busy');const cloud=await fetchCloudSave(session.user.id);if(cloud?.state){writeLocalState(cloud.state);lastUploaded=JSON.stringify(cloud.state)}else lastUploaded='';localStorage.setItem(OWNER_KEY,session.user.id);localStorage.setItem(SEASON_KEY,CURRENT_SEASON);setCloud('Saison 2 · Cloud aktiv','ok')}
 async function flushCloud(force=false){if(!session?.user)return;const local=readLocalState();if(!local?.state)return;const raw=JSON.stringify(local.state);if(!force&&raw===lastUploaded)return;await uploadState(local.state)}
 function startCloudLoop(){if(cloudTimer)clearInterval(cloudTimer);cloudTimer=setInterval(()=>flushCloud(false),CLOUD_INTERVAL_MS)}
+window.CNC_PREPARE_UPDATE=async()=>{try{window.CNC_GAME_BRIDGE?.save?.()}catch{}await flushCloud(true);return true};
 
 function showAccountBar(){const bar=$('accountBar');if(!bar)return;bar.hidden=false;$('accountEmail').textContent=session?.user?.email||'Account'}
 function hideAuth(){$('authGate').hidden=true;$('nav').style.display='';showAccountBar()}
 function showAuth(){$('authGate').hidden=false;$('nav').style.display='none';$('accountBar').hidden=true;$('root').innerHTML=''}
 
-async function initOnlineSystems(){if(onlineSystems)return onlineSystems;const mod=await import('./online-systems-v1.js?v=1');onlineSystems=await mod.initCncOnline({supabase,user:session.user,readState:()=>readLocalState()?.state||null});return onlineSystems}
-async function initOperationsSystems(){if(operationsSystems)return operationsSystems;const mod=await import('./operations-v1.js?v=9');operationsSystems=await mod.initCncOperations({supabase,user:session.user,readState:()=>readLocalState()?.state||null});return operationsSystems}
-async function initFeedbackSystems(){if(feedbackSystems)return feedbackSystems;const mod=await import('./feedback-v1.js?v=1');feedbackSystems=await mod.initCncFeedback({supabase,user:session.user,readState:()=>readLocalState()?.state||null});return feedbackSystems}
+async function initOnlineSystems(){if(onlineSystems)return onlineSystems;const mod=await import('./online-systems-v1.js?r='+RELEASE_QUERY);onlineSystems=await mod.initCncOnline({supabase,user:session.user,readState:()=>readLocalState()?.state||null});return onlineSystems}
+async function initOperationsSystems(){if(operationsSystems)return operationsSystems;const mod=await import('./operations-v1.js?r='+RELEASE_QUERY);operationsSystems=await mod.initCncOperations({supabase,user:session.user,readState:()=>readLocalState()?.state||null});return operationsSystems}
+async function initFeedbackSystems(){if(feedbackSystems)return feedbackSystems;const mod=await import('./feedback-v1.js?r='+RELEASE_QUERY);feedbackSystems=await mod.initCncFeedback({supabase,user:session.user,readState:()=>readLocalState()?.state||null});return feedbackSystems}
 function installGameHooks(){if(!window.G||window.G.__onlineHooks)return;const originalClaim=window.G.claim;window.G.claim=()=>{const order=readLocalState()?.state?.order;const completed=order&&Number(order.done)>=Number(order.q);originalClaim();if(completed&&order)window.CNC_ONLINE?.recordOrderClaim?.({...order})};window.G.__onlineHooks=true}
 async function loadGame(){
   if(gameLoaded)return;
   gameLoaded=true;
   const root=$('root');
   root.innerHTML='<div class="notice">Saison 2 + Online-Systeme werden gestartet …</div>';
-  const files=[1,2,3,4,5,6,7].map(n=>'./v3part'+n+'.txt?v='+GAME_PART_VERSION);
+  const files=[1,2,3,4,5,6,7].map(n=>'./v3part'+n+'.txt?r='+RELEASE_QUERY+'&gp='+GAME_PART_VERSION);
   const parts=await Promise.all(files.map(f=>fetch(f,{cache:'no-store'}).then(r=>{if(!r.ok)throw new Error(f+' '+r.status);return r.text()})));
   new Function(parts.join(''))();
   installGameHooks();

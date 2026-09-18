@@ -25,5 +25,7 @@ jobs:
         run: node cnc-empire/tests/quality-smoke.mjs
       - name: Run feedback smoke checks
         run: node cnc-empire/tests/feedback-smoke.mjs
+      - name: Run update smoke checks
+        run: node cnc-empire/tests/update-smoke.mjs
       - name: Run balance smoke checks
         run: node cnc-empire/tests/balance-smoke.mjs
