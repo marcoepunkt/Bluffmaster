@@ -8,13 +8,18 @@ const assert=(ok,msg)=>{if(!ok){console.error('FAIL:',msg);process.exitCode=1}el
 const index=read('index.html');
 const auth=read('auth-cloud-v3.js');
 const profile=read('v3part6.txt');
+const shell=read('v3part7.txt');
 const feedback=read('feedback-v1.js');
 const css=read('feedback-v1.css');
 
 assert(index.includes('feedback-v1.css?r='),'feedback stylesheet is loaded');
 assert(auth.includes("import('./feedback-v1.js?r='+RELEASE_QUERY)"),'feedback module is initialized after login');
 assert(auth.includes('initFeedbackSystems()'),'feedback init is part of game startup');
-assert(profile.includes('CNC_FEEDBACK?.render?.()'),'profile renders feedback area');
+assert(profile.includes('function community()')&&profile.includes('CNC_FEEDBACK?.render?.()'),'community renders feedback area');
+assert(!/function profile\(\)[\\s\\S]*CNC_FEEDBACK\?\.render/.test(profile),'profile no longer renders feedback area');
+assert(shell.includes("['community','👥','Community']"),'Community is a main navigation tab');
+assert(shell.includes("G.community")||shell.includes("community:x=>"),'Community subtabs are wired');
+assert(profile.includes("'suggestions','💡','Vorschläge'")&&profile.includes("'news','📢','News'")&&profile.includes("'polls','📊','Umfragen'"),'Community sub-navigation exists');
 assert(feedback.includes("feedback_suggestions_s2"),'feedback uses suggestion table');
 assert(feedback.includes("feedback_admins_s2"),'feedback checks admin table');
 assert(feedback.includes("feedback_votes_s2"),'feedback uses reactions table');
