@@ -20,6 +20,17 @@ async function addFriend(){
 function removeFriend(code){s.friendCodes=s.friendCodes.filter(c=>c!==code);s.friends=s.friends.filter(f=>f.code!==code);save();render()}
 function copyCode(){if(!s.friendCode)return toast('Online-Code wird erstellt');navigator.clipboard?.writeText(s.friendCode);toast('Freundescode kopiert')}
 function startDuel(){duel={score:0,left:20};render();const t=setInterval(()=>{if(!duel)return clearInterval(t);duel.left--;if(duel.left<=0){clearInterval(t);s.duelBest=Math.max(s.duelBest,duel.score);toast('Schicht beendet: '+duel.score+' Teile');duel=null;save();syncOnline(true)}render()},1000)}
-function offline(){const sec=Math.min(offlineHours()*3600,Math.max(0,(Date.now()-(s.last||Date.now()))/1000));const v=auto()*sec*.10;if(v>1){add(v,false);toast('Offline-Ertrag '+euro(v))}s.last=Date.now();save()}
+function beginOffline(){
+  if(!Number(s.offlineSince))s.offlineSince=Date.now();
+  s.last=Date.now();
+  save()
+}
+function offline(){
+  const now=Date.now(),since=Number(s.offlineSince)||Number(s.last)||now;
+  const sec=Math.min(offlineHours()*3600,Math.max(0,(now-since)/1000));
+  const v=auto()*sec*.10;
+  if(v>1){add(v,false);toast('Offline-Ertrag '+euro(v))}
+  s.offlineSince=0;s.last=now;save();return {sec,value:v}
+}
 function stats(){return `<div class="grid"><div class="card stat"><div class="label">Kontostand</div><div class="value">${euro(s.money)}</div><div class="sub">Gesamt ${euro(s.lifetime)}</div></div><div class="card stat"><div class="label">Automatisch</div><div class="value">${euro(auto())}/s</div><div class="sub">★ ${availableStars()} frei · ×${prestigeMult().toFixed(2)} Prestige</div></div></div>`}
 function buySelector(){return `<div class="seg">${[['1','x1'],['10','x10'],['max','MAX']].map(([v,l])=>`<button class="${s.buyMode===v?'on':''}" onclick="G.setBuyMode('${v}')">${l}</button>`).join('')}</div>`}
