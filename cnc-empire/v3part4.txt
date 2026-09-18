@@ -27,10 +27,17 @@ function beginOffline(){
 }
 function offline(){
   const now=Date.now(),since=Number(s.offlineSince)||Number(s.last)||now;
-  const sec=Math.min(offlineHours()*3600,Math.max(0,(now-since)/1000));
+  const elapsedSec=Math.max(0,(now-since)/1000);
+  const sec=Math.min(offlineHours()*3600,elapsedSec);
+  let pausedOrderMs=0;
+  if(s.order&&Number(s.order.acceptedAt)>0){
+    const pauseStart=Math.max(since,Number(s.order.acceptedAt)||since);
+    pausedOrderMs=Math.max(0,now-pauseStart);
+    if(pausedOrderMs>0)s.order.acceptedAt=Number(s.order.acceptedAt)+pausedOrderMs;
+  }
   const v=auto()*sec*.10;
   if(v>1){add(v,false);toast('Offline-Ertrag '+euro(v))}
-  s.offlineSince=0;s.last=now;save();return {sec,value:v}
+  s.offlineSince=0;s.last=now;save();return {sec,elapsedSec,value:v,pausedOrderMs}
 }
 function stats(){return `<div class="grid"><div class="card stat"><div class="label">Kontostand</div><div class="value">${euro(s.money)}</div><div class="sub">Gesamt ${euro(s.lifetime)}</div></div><div class="card stat"><div class="label">Automatisch</div><div class="value">${euro(auto())}/s</div><div class="sub">★ ${availableStars()} frei · ×${prestigeMult().toFixed(2)} Prestige</div></div></div>`}
 function buySelector(){return `<div class="seg">${[['1','x1'],['10','x10'],['max','MAX']].map(([v,l])=>`<button class="${s.buyMode===v?'on':''}" onclick="G.setBuyMode('${v}')">${l}</button>`).join('')}</div>`}
