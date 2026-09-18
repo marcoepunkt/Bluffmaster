@@ -5,9 +5,10 @@ function board(){
 }
 let communityTab='suggestions';
 function community(){
-  const unread=window.CNC_COMMUNITY?.unreadCount?.()||0;
+  const unreadNews=window.CNC_COMMUNITY?.unreadCount?.()||0;
+  const unreadPolls=window.CNC_COMMUNITY?.unreadPollCount?.()||0;
   const tabs=[['suggestions','💡','Vorschläge'],['news','📢','News'],['polls','📊','Umfragen']];
-  const tabBar='<div class="communityTabs">'+tabs.map(x=>`<button class="${communityTab===x[0]?'on':''}" onclick="G.community('${x[0]}')"><span>${x[1]}</span>${x[2]}${x[0]==='news'&&unread?'<em class="communitySubBadge">'+Math.min(99,unread)+'</em>':''}</button>`).join('')+'</div>';
+  const tabBar='<div class="communityTabs">'+tabs.map(x=>`<button class="${communityTab===x[0]?'on':''}" onclick="G.community('${x[0]}')"><span>${x[1]}</span>${x[2]}${x[0]==='news'&&unreadNews?'<em class="communitySubBadge">'+Math.min(99,unreadNews)+'</em>':x[0]==='polls'&&unreadPolls?'<em class="communitySubBadge">'+Math.min(99,unreadPolls)+'</em>':''}</button>`).join('')+'</div>';
   let body='';
   if(communityTab==='suggestions')body=window.CNC_FEEDBACK?.render?.()||'<div class="notice">Vorschläge werden geladen …</div>';
   else if(communityTab==='news')body=window.CNC_COMMUNITY?.renderNews?.()||'<div class="notice">Community-News werden geladen …</div>';

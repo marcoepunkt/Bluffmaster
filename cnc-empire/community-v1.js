@@ -1,5 +1,5 @@
 let sb=null,user=null;
-const S={news:[],polls:[],options:[],votes:[],readNewsIds:[],isAdmin:false,busy:false,message:'',error:''};
+const S={news:[],polls:[],options:[],votes:[],readNewsIds:[],readPollIds:[],isAdmin:false,busy:false,message:'',error:''};
 
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function date(iso){try{return new Intl.DateTimeFormat('de-DE',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}).format(new Date(iso))}catch{return '—'}}
@@ -7,30 +7,39 @@ function rerender(){window.CNC_GAME_BRIDGE?.render?.()}
 function setMessage(text,error=false){S.message=error?'':text;S.error=error?text:''}
 function messageHtml(){return S.error?'<div class="communityMessage error">'+esc(S.error)+'</div>':S.message?'<div class="communityMessage ok">'+esc(S.message)+'</div>':''}
 function unreadNews(){return S.news.filter(n=>n.published!==false&&!S.readNewsIds.includes(n.id))}
+function unreadPolls(){return S.polls.filter(p=>p.status==='open'&&!S.readPollIds.includes(p.id))}
 function unreadCount(){return unreadNews().length}
+function unreadPollCount(){return unreadPolls().length}
+function totalUnreadCount(){return unreadCount()+unreadPollCount()}
 function renderNewsAlert(){
-  const count=unreadCount();
-  if(!count)return '';
-  return '<button class="communityNewsAlert" onclick="G.openNews()"><span class="communityNewsAlertIcon">📢</span><span class="communityNewsAlertText"><b>'+count+' neue '+(count===1?'News':'News')+'</b><small>Es gibt Neuigkeiten in CNC Empire. Antippen zum Lesen.</small></span><span class="communityNewsAlertArrow">›</span></button>';
+  const news=unreadCount(),polls=unreadPollCount(),total=news+polls;
+  if(!total)return '';
+  const bits=[];
+  if(news)bits.push(news+' '+(news===1?'neue News':'neue News'));
+  if(polls)bits.push(polls+' '+(polls===1?'neue Umfrage':'neue Umfragen'));
+  const icon=news?'📢':'📊';
+  return '<button class="communityNewsAlert" onclick="G.openCommunityUpdates()"><span class="communityNewsAlertIcon">'+icon+'</span><span class="communityNewsAlertText"><b>'+bits.join(' · ')+'</b><small>Es gibt neue Community-Inhalte. Antippen zum Ansehen.</small></span><span class="communityNewsAlertArrow">›</span></button>';
 }
 
 async function refresh(){
   if(!sb||!user)return;
-  const [adminRes,newsRes,pollsRes,optionsRes,votesRes,readsRes]=await Promise.all([
+  const [adminRes,newsRes,pollsRes,optionsRes,votesRes,readsRes,pollReadsRes]=await Promise.all([
     sb.from('feedback_admins_s2').select('user_id').eq('user_id',user.id).maybeSingle(),
     sb.from('community_news_s2').select('id,title,body,published,created_at,updated_at,created_by').order('created_at',{ascending:false}).limit(50),
     sb.from('community_polls_s2').select('id,question,status,created_at,updated_at,created_by').order('created_at',{ascending:false}).limit(50),
     sb.from('community_poll_options_s2').select('id,poll_id,label,position').order('position',{ascending:true}).limit(500),
     sb.from('community_poll_votes_s2').select('poll_id,option_id,user_id').limit(10000),
-    sb.from('community_news_reads_s2').select('news_id').eq('user_id',user.id).limit(500)
+    sb.from('community_news_reads_s2').select('news_id').eq('user_id',user.id).limit(500),
+    sb.from('community_poll_reads_s2').select('poll_id').eq('user_id',user.id).limit(500)
   ]);
-  for(const result of [adminRes,newsRes,pollsRes,optionsRes,votesRes,readsRes])if(result.error)throw result.error;
+  for(const result of [adminRes,newsRes,pollsRes,optionsRes,votesRes,readsRes,pollReadsRes])if(result.error)throw result.error;
   S.isAdmin=!!adminRes.data;
   S.news=Array.isArray(newsRes.data)?newsRes.data:[];
   S.polls=Array.isArray(pollsRes.data)?pollsRes.data:[];
   S.options=Array.isArray(optionsRes.data)?optionsRes.data:[];
   S.votes=Array.isArray(votesRes.data)?votesRes.data:[];
   S.readNewsIds=(Array.isArray(readsRes.data)?readsRes.data:[]).map(x=>x.news_id).filter(Boolean);
+  S.readPollIds=(Array.isArray(pollReadsRes.data)?pollReadsRes.data:[]).map(x=>x.poll_id).filter(Boolean);
 }
 
 function newsItem(n){
@@ -58,6 +67,28 @@ async function openNews(){
   }catch(err){
     console.error('CNC community read news',err);
     setMessage('Lesestatus der News konnte nicht gespeichert werden.',true);
+  }
+}
+
+async function markPollsRead(){
+  const ids=unreadPolls().map(p=>p.id);
+  if(!ids.length)return 0;
+  const readAt=new Date().toISOString();
+  const rows=ids.map(poll_id=>({poll_id,user_id:user.id,read_at:readAt}));
+  const {error}=await sb.from('community_poll_reads_s2').upsert(rows,{onConflict:'poll_id,user_id'});
+  if(error)throw error;
+  S.readPollIds=[...new Set([...S.readPollIds,...ids])];
+  return ids.length;
+}
+
+async function openPolls(){
+  if(!sb||!user)return;
+  try{
+    await refresh();
+    await markPollsRead();
+  }catch(err){
+    console.error('CNC community read polls',err);
+    setMessage('Lesestatus der Umfragen konnte nicht gespeichert werden.',true);
   }
 }
 
@@ -141,6 +172,8 @@ async function createPollFromUI(){
     pollId=pollRes.data.id;
     const optionRes=await sb.from('community_poll_options_s2').insert(options.map((label,position)=>({poll_id:pollId,label:label.slice(0,120),position})));
     if(optionRes.error)throw optionRes.error;
+    const readRes=await sb.from('community_poll_reads_s2').upsert({poll_id:pollId,user_id:user.id,read_at:new Date().toISOString()},{onConflict:'poll_id,user_id'});
+    if(readRes.error)throw readRes.error;
     await refresh();setMessage('Umfrage wurde gestartet.');
   }catch(err){
     console.error('CNC community poll create',err);
@@ -190,7 +223,7 @@ async function deletePoll(id){
 
 export async function initCncCommunity(ctx){
   sb=ctx.supabase;user=ctx.user;
-  const api={renderNews,renderPolls,renderNewsAlert,unreadCount,openNews,markNewsRead,refresh,publishNewsFromUI,deleteNews,createPollFromUI,votePoll,setPollStatus,deletePoll,state:S};
+  const api={renderNews,renderPolls,renderNewsAlert,unreadCount,unreadPollCount,totalUnreadCount,openNews,markNewsRead,openPolls,markPollsRead,refresh,publishNewsFromUI,deleteNews,createPollFromUI,votePoll,setPollStatus,deletePoll,state:S};
   window.CNC_COMMUNITY=api;
   try{await refresh()}catch(err){console.error('CNC community load',err);setMessage('Community-News und Umfragen konnten nicht geladen werden.',true)}
   return api;
