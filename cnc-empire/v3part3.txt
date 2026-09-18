@@ -7,6 +7,15 @@ function claim(){
 }
 function spentFor(id,levels){const u=starUpgrades[id];if(!u)return 0;let total=0;for(let i=0;i<levels;i++)total+=u.base+i*u.step;return total}
 function starCost(id){const u=starUpgrades[id],lv=s.starShop[id]||0;return u.base+lv*u.step}
+function staffSlotCost(id){const r=staffExpansionRules[id],lv=s.staffExpansion?.[id]||0;return r&&lv<r.costs.length?r.costs[lv]:Infinity}
+function totalStaffExpansion(){return Object.values(s.staffExpansion||{}).reduce((a,b)=>a+(Number(b)||0),0)}
+function buyStaffSlot(id){
+  const r=staffExpansionRules[id];if(!r)return;
+  const lv=s.staffExpansion?.[id]||0;if(lv>=r.costs.length)return toast('Personalbereich bereits maximal erweitert');
+  if(totalStaffExpansion()>=15)return toast('Maximal 15 zusätzliche Personalplätze möglich');
+  const cost=staffSlotCost(id);if(availableStars()<cost)return toast('Du brauchst '+cost+' freie Meistersterne');
+  s.staffExpansion[id]=lv+1;s.starsSpent+=cost;save();render();toast(r.name+': zusätzlicher Personalplatz freigeschaltet')
+}
 function buyStar(id){
   const u=starUpgrades[id];if(!u)return;const lv=s.starShop[id]||0;if(lv>=u.max)return toast('Bereits maximal ausgebaut');
   const c=starCost(id);if(availableStars()<c)return toast('Du brauchst '+c+' freie Meistersterne');
@@ -18,7 +27,7 @@ function prestige(){
   const req=prestigeRequirement();if(s.runRevenue<req)return toast('Noch '+euro(req-s.runRevenue)+' bis Meisterprestige');
   const gain=prestigeGain();
   if(!confirm('Meisterlauf neu starten? Du erhältst '+gain+' Meistersterne. Permanente Meister-Upgrades bleiben erhalten.'))return;
-  const keep={name:s.name,prestige:s.prestige+gain,starsSpent:s.starsSpent,starShop:s.starShop,run:s.run+1,friendCodes:s.friendCodes,friends:s.friends,duelBest:s.duelBest,lifetime:s.lifetime,week:s.week,weekKey:s.weekKey,friendCode:s.friendCode,playerSecret:s.playerSecret,onlineRegistered:s.onlineRegistered,buyMode:s.buyMode,moneyDisplay:s.moneyDisplay,customerRep:s.customerRep,customerStats:s.customerStats};
+  const keep={name:s.name,prestige:s.prestige+gain,starsSpent:s.starsSpent,starShop:s.starShop,staffExpansion:s.staffExpansion,run:s.run+1,friendCodes:s.friendCodes,friends:s.friends,duelBest:s.duelBest,lifetime:s.lifetime,week:s.week,weekKey:s.weekKey,friendCode:s.friendCode,playerSecret:s.playerSecret,onlineRegistered:s.onlineRegistered,buyMode:s.buyMode,moneyDisplay:s.moneyDisplay,customerRep:s.customerRep,customerStats:s.customerStats};
   s={...fresh(),...keep};save();render();syncOnline(true)
 }
 function randomSecret(){const a=new Uint8Array(32);crypto.getRandomValues(a);return Array.from(a,b=>b.toString(16).padStart(2,'0')).join('')}
