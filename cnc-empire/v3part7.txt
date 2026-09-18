@@ -14,6 +14,7 @@ window.G={
 window.CNC_GAME_BRIDGE={getState:()=>s,partRate:()=>partRate(),spend:v=>{v=Math.max(0,Number(v)||0);if(s.money<v)return false;s.money-=v;save();return true},earn:v=>{v=Math.max(0,Number(v)||0);if(v>0){add(v);save()}},save:()=>save(),render:()=>render()};
 offline();render();ensureOnline().then(()=>{render();syncOnline(true);loadFriends()});
 setInterval(()=>{if(!duel){const v=auto();if(v){add(v);if(s.order)s.order.done=Math.min(s.order.q,s.order.done+partRate());save();render()}syncOnline()}},1000);
-document.addEventListener('visibilitychange',()=>{if(document.hidden)syncOnline(true)});
-window.addEventListener('online',()=>{toast('Wieder online');ensureOnline().then(()=>loadFriends())});
+document.addEventListener('visibilitychange',()=>{if(document.hidden)syncOnline(true);else window.CNC_COMMUNITY?.refresh?.().then(()=>render())});
+setInterval(()=>{if(!document.hidden&&navigator.onLine)window.CNC_COMMUNITY?.refresh?.().then(()=>render())},60000);
+window.addEventListener('online',()=>{toast('Wieder online');ensureOnline().then(()=>loadFriends());window.CNC_COMMUNITY?.refresh?.().then(()=>render())});
 })();

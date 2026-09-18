@@ -32,6 +32,9 @@ assert(css.includes('.communityNavBadge')&&css.includes('.communityNewsAlert'),'
 assert(core.includes('communitySubBadge'),'News subtab shows unread badge');
 assert(core.includes('communityNavBadge'),'main Community tab shows unread badge');
 assert(read('v3part5.txt').includes('renderNewsAlert'),'Workshop renders unread News alert');
+assert(core.includes("visibilitychange")&&core.includes("CNC_COMMUNITY?.refresh?.().then(()=>render())"),'Community refreshes when app returns to foreground');
+assert(core.includes("setInterval(()=>{if(!document.hidden&&navigator.onLine)window.CNC_COMMUNITY?.refresh?.().then(()=>render())},60000)"),'Community checks for new News every 60 seconds while active');
+assert(core.includes("window.addEventListener('online'")&&core.includes("CNC_COMMUNITY?.refresh?.().then(()=>render())"),'Community refreshes when connection returns');
 
 const compile=community.replace(/\bexport\s+(?=async function|function|const|let|class)/g,'').replace(/export\s*\{[^}]*\};?/g,'');
 try{new Function(compile);assert(true,'community module is syntactically valid')}catch(e){assert(false,'community syntax: '+e.message)}
