@@ -2,7 +2,7 @@ let sb=null,user=null,readState=()=>null,timer=null;
 const S={market:[],marketMap:new Map(),clan:null,membership:null,members:[],clanBoard:[],event:null,myParts:0,loading:false,error:'',lastRefresh:0};
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const num=n=>new Intl.NumberFormat('de-DE',{maximumFractionDigits:0}).format(Number(n)||0);
-const money=n=>new Intl.NumberFormat('de-DE',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(Number(n)||0);
+const money=n=>window.CNC_FORMAT_MONEY?.(n)??new Intl.NumberFormat('de-DE',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(Number(n)||0);
 function code6(){const chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';const a=new Uint8Array(6);crypto.getRandomValues(a);return Array.from(a,b=>chars[b%chars.length]).join('')}
 function currentState(){return readState?.()||{}}
 function marketMultiplier(material){return Number(S.marketMap.get(material)?.multiplier)||1}
