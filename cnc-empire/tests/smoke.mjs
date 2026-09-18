@@ -36,6 +36,9 @@ const required=[
   'function prestigeGain()',
   'moneyDisplay',
   'window.CNC_FORMAT_MONEY=euro',
+  'staffExpansion',
+  'function buyStaffSlot(id)',
+  'Personalentwicklung',
   'function orderMarketMult(mat)',
   'function render()',
   'window.G=',
@@ -141,20 +144,33 @@ async function runRuntimeSmoke(){
   if(!(state.order.done>doneBefore))fail('Aktiver Klick erhöht den Auftragsfortschritt nicht');
   ok('Auftrag annehmen + aktiver Fortschritt funktionieren');
 
+  state.prestige=10;state.starsSpent=0;
+  const slotBefore=state.staffExpansion.operator;
+  window.G.buyStaffSlot('operator');
+  state=window.CNC_GAME_BRIDGE.getState();
+  if(state.staffExpansion.operator!==slotBefore+1)fail('Prestige-Personalplatz wurde nicht freigeschaltet');
+  if(state.starsSpent!==1)fail('Erster Maschinenbediener-Platz muss genau 1 Meisterstern kosten');
+  if(!env.getElement('root').innerHTML.includes('Personalentwicklung'))fail('Personalentwicklung wird im Meisterzentrum nicht angezeigt');
+  ok('Prestige-Personalplatz kostet korrekt Sterne und wird dauerhaft gespeichert');
+
+  let resetStaffCalls=0;
+  window.CNC_OPERATIONS={productionMultiplier:()=>1,resetStaffForPrestige:()=>{resetStaffCalls++;return true}};
   state.runRevenue=10000000;
   const prestigeBefore=state.prestige;
   const runBefore=state.run;
   window.G.prestige();
   state=window.CNC_GAME_BRIDGE.getState();
   if(state.prestige!==prestigeBefore+1||state.run!==runBefore+1)fail('Erster Prestige-Reset liefert nicht exakt einen Stern und einen neuen Lauf');
-  ok('Prestige-Reset funktioniert mit neuer Kurve');
+  if(state.staffExpansion.operator!==slotBefore+1)fail('Prestige-Personalplatz ging beim Meisterlauf verloren');
+  if(resetStaffCalls!==1)fail('Eingestellte Mitarbeiter werden beim Meisterlauf nicht zurückgesetzt');
+  ok('Prestige-Reset behält Personalplätze und setzt eingestellte Mitarbeiter zurück');
 }
 await runRuntimeSmoke();
 
 const operations=await fs.readFile(path.join(root,'operations-v1.js'),'utf8');
 const operationsCompile=operations.replace(/\bexport\s+(?=async function|function|const|let|class)/g,'').replace(/export\s*\{[^}]*\};?/g,'');
 try{new Function(operationsCompile);ok('Betriebsmodul ist syntaktisch gültig')}catch(e){fail(`Betriebsmodul-Syntaxfehler: ${e.message}`)}
-for(const marker of ['function dashboardData()','function bottleneckData()','function renderDashboard()','Engpassanalyse','dashboardData,stageRates,qualityYield','const coreAlreadyRenders=','Date.now()-lastUiRender>=2000']){
+for(const marker of ['function dashboardData()','function bottleneckData()','function renderDashboard()','Engpassanalyse','dashboardData,stageRates,qualityYield','function staffMax(id)','resetStaffForPrestige','Prestige-Platz','const coreAlreadyRenders=','Date.now()-lastUiRender>=2000']){
   if(!operations.includes(marker))fail(`Dashboard/Performance-Invariante fehlt: ${marker}`);
   ok(`Dashboard/Performance-Invariante ${marker}`);
 }
