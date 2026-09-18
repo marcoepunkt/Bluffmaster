@@ -43,7 +43,10 @@ ok('Messraum und Zertifizierungen werden gerendert');
 if(window.CNC_OPERATIONS.render().includes('🧪 Qualitätsprüfung'))fail('Konkrete QS-Prüfung darf nicht mehr im Bereich Betrieb gerendert werden');
 ok('Konkrete QS-Prüfung wurde aus Betrieb entfernt');
 if(!ordersCore.includes('CNC_QUALITY?.renderOrderInspection?.()'))fail('Auftragsseite bindet die QS-Prüfung nicht ein');
-ok('QS-Prüfung wird direkt in Aufträge eingebunden');
+if(!ordersCore.includes('</div>${qualityCheck}</div>'))fail('QS-Prüfung ist nicht direkt innerhalb der aktiven Auftragskarte eingebettet');
+if(!ordersCore.includes('Auftrag in QS-Freigabe'))fail('Abgeschlossener Auftrag ohne aktive order bekommt keine QS-Auftragskarte');
+if(!ordersCore.includes('const hasActive=!!o||!!qualityCheck'))fail('Auftragsbörse wird bei offener QS-Prüfung nicht unterdrückt');
+ok('QS-Prüfung ist direkt in die Auftragskarte integriert und blockiert die Auftragsbörse');
 
 await window.CNC_QUALITY.buyGauge('caliper');
 if(window.CNC_QUALITY.state().gaugeLevel!==1)fail('Messschieber-Kauf erhöht Messraum nicht auf Q1');
@@ -72,7 +75,7 @@ const qsOrder={...tagged,name:'QS-Testauftrag',qualityTagged:true,qualityLevel:4
 window.CNC_CUSTOMERS.recordOrderClaim(qsOrder);
 if(!qState.pendingInspection)fail('Dritte geeignete Qualitätsabrechnung erzeugt keine offene QS-Prüfung');
 const inlineInspection=window.CNC_QUALITY.renderOrderInspection();
-if(!inlineInspection.includes('Qualitätsprüfung')||!inlineInspection.includes('QS-Testauftrag'))fail('Neu ausgelöste QS-Prüfung ist nicht sofort als Auftragskarte verfügbar');
+if(!inlineInspection.includes('QS-Prüfung erforderlich')||!inlineInspection.includes('QS-Testauftrag')||!inlineInspection.includes('orderQualityInline'))fail('Neu ausgelöste QS-Prüfung ist nicht als eingebetteter Auftragsbereich verfügbar');
 ok('Neu ausgelöste QS-Prüfung erscheint ohne Reload direkt als Auftragskarte');
 if(tabCalls!==0)fail('QS-Prüfung darf keinen automatischen Reiterwechsel auslösen');
 ok('QS-Prüfung löst keinen automatischen Wechsel zu Betrieb aus');
