@@ -1,5 +1,5 @@
 let sb=null,user=null,readState=()=>null;
-const S={items:[],voteCounts:{},myVotes:[],isAdmin:false,busy:false,message:'',error:'',filter:'all'};
+const S={items:[],reactionCounts:{},myReactions:{},isAdmin:false,busy:false,message:'',error:'',filter:'all'};
 
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function date(iso){try{return new Intl.DateTimeFormat('de-DE',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}).format(new Date(iso))}catch{return '—'}}
@@ -7,8 +7,9 @@ function statusLabel(status){return status==='implemented'?'Umgesetzt':status===
 function statusIcon(status){return status==='implemented'?'✅':status==='rejected'?'❌':'🟡'}
 function rerender(){window.CNC_GAME_BRIDGE?.render?.()}
 function setMessage(text,error=false){S.message=error?'':text;S.error=error?text:''}
-function voteCount(id){return Number(S.voteCounts[id]||0)}
-function hasVoted(id){return S.myVotes.includes(id)}
+function counts(id){return S.reactionCounts[id]||{like:0,dislike:0}}
+function myReaction(id){return S.myReactions[id]||null}
+function score(id){const c=counts(id);return Number(c.like||0)-Number(c.dislike||0)}
 function setFilter(filter){if(!['all','open','implemented','rejected'].includes(filter))return;S.filter=filter;rerender()}
 
 function sortedItems(items=S.items){
@@ -17,19 +18,25 @@ function sortedItems(items=S.items){
     const sr=(rank[a.status]??9)-(rank[b.status]??9);
     if(sr)return sr;
     if(a.status==='open'){
-      const vr=voteCount(b.id)-voteCount(a.id);
-      if(vr)return vr;
+      const scoreDiff=score(b.id)-score(a.id);
+      if(scoreDiff)return scoreDiff;
+      const likeDiff=counts(b.id).like-counts(a.id).like;
+      if(likeDiff)return likeDiff;
     }
     return new Date(b.created_at).getTime()-new Date(a.created_at).getTime();
   });
 }
 
-function voteHtml(item){
-  const count=voteCount(item.id);
-  if(item.status!=='open')return '<div class="feedbackVoteClosed">👍 '+count+' '+(count===1?'Vote':'Votes')+'</div>';
-  const voted=hasVoted(item.id);
-  return '<button class="feedbackVoteBtn '+(voted?'active':'')+'" '+(S.busy?'disabled':'')+' onclick="CNC_FEEDBACK.toggleVote(\''+esc(item.id)+'\')">'
-    +(voted?'👍 Vote entfernen':'👍 Voten')+' <span>'+count+'</span></button>';
+function reactionHtml(item){
+  const c=counts(item.id);
+  if(item.status!=='open'){
+    return '<div class="feedbackReactionsClosed"><span>👍 '+c.like+'</span><span>👎 '+c.dislike+'</span></div>';
+  }
+  const mine=myReaction(item.id);
+  return '<div class="feedbackReactionButtons">'
+    +'<button class="feedbackVoteBtn like '+(mine==='like'?'active':'')+'" '+(S.busy?'disabled':'')+' onclick="CNC_FEEDBACK.setReaction(\''+esc(item.id)+'\',\'like\')">👍 Gefällt mir <span>'+c.like+'</span></button>'
+    +'<button class="feedbackVoteBtn dislike '+(mine==='dislike'?'active':'')+'" '+(S.busy?'disabled':'')+' onclick="CNC_FEEDBACK.setReaction(\''+esc(item.id)+'\',\'dislike\')">👎 Gefällt mir nicht <span>'+c.dislike+'</span></button>'
+    +'</div>';
 }
 
 function suggestionHtml(item,admin=false,rank=null){
@@ -47,7 +54,7 @@ function suggestionHtml(item,admin=false,rank=null){
     +'<div class="feedbackEntryHead"><div class="feedbackTitleBlock"><div class="feedbackTitleLine">'+place+'<div class="name">'+esc(item.title)+'</div>'+own+'</div><div class="muted">'+esc(item.player_name||'Werkstatt')+' · '+date(item.created_at)+'</div></div>'
     +'<span class="feedbackStatus '+esc(item.status)+'">'+statusIcon(item.status)+' '+statusLabel(item.status)+'</span></div>'
     +'<div class="feedbackDescription">'+esc(item.description)+'</div>'
-    +'<div class="feedbackEntryFoot">'+voteHtml(item)+'</div>'+note+actions+'</div>';
+    +'<div class="feedbackEntryFoot">'+reactionHtml(item)+'</div>'+note+actions+'</div>';
 }
 
 function filterButtons(){
@@ -58,7 +65,7 @@ function filterButtons(){
 function render(){
   const msg=S.error?'<div class="feedbackMessage error">'+esc(S.error)+'</div>':S.message?'<div class="feedbackMessage ok">'+esc(S.message)+'</div>':'';
   const form='<div class="section">💡 Verbesserungsvorschläge</div><div class="card item feedbackCard">'
-    +'<div class="name">Idee fürs Spiel einreichen</div><div class="desc">Dein Vorschlag ist für alle Spieler sichtbar. Gute Ideen können von der Community hochgevotet werden.</div>'
+    +'<div class="name">Idee fürs Spiel einreichen</div><div class="desc">Dein Vorschlag ist für alle Spieler sichtbar. Die Community kann mit 👍 Gefällt mir oder 👎 Gefällt mir nicht abstimmen.</div>'
     +'<input id="feedbackTitle" class="field" maxlength="80" placeholder="Kurzer Titel">'
     +'<textarea id="feedbackDescription" class="field feedbackTextArea" maxlength="1200" placeholder="Beschreibe deinen Vorschlag möglichst konkret."></textarea>'
     +'<button class="btn feedbackSubmit" '+(S.busy?'disabled':'')+' onclick="CNC_FEEDBACK.submitFromUI()">Vorschlag senden</button>'+msg+'</div>';
@@ -80,25 +87,27 @@ function render(){
 
 async function refresh(){
   if(!sb||!user)return;
-  const [adminRes,itemRes,voteRes]=await Promise.all([
+  const [adminRes,itemRes,reactionRes]=await Promise.all([
     sb.from('feedback_admins_s2').select('user_id').eq('user_id',user.id).maybeSingle(),
     sb.from('feedback_suggestions_s2').select('id,user_id,player_name,title,description,status,admin_note,created_at,updated_at').limit(300),
-    sb.from('feedback_votes_s2').select('suggestion_id,user_id').limit(10000)
+    sb.from('feedback_votes_s2').select('suggestion_id,user_id,vote_type').limit(10000)
   ]);
   if(adminRes.error)throw adminRes.error;
   if(itemRes.error)throw itemRes.error;
-  if(voteRes.error)throw voteRes.error;
+  if(reactionRes.error)throw reactionRes.error;
   S.isAdmin=!!adminRes.data;
   S.items=Array.isArray(itemRes.data)?itemRes.data:[];
-  const counts={};
-  const mine=[];
-  for(const vote of (Array.isArray(voteRes.data)?voteRes.data:[])){
-    if(!vote?.suggestion_id)continue;
-    counts[vote.suggestion_id]=(counts[vote.suggestion_id]||0)+1;
-    if(vote.user_id===user.id)mine.push(vote.suggestion_id);
+  const reactionCounts={};
+  const mine={};
+  for(const reaction of (Array.isArray(reactionRes.data)?reactionRes.data:[])){
+    if(!reaction?.suggestion_id)continue;
+    const type=reaction.vote_type==='dislike'?'dislike':'like';
+    if(!reactionCounts[reaction.suggestion_id])reactionCounts[reaction.suggestion_id]={like:0,dislike:0};
+    reactionCounts[reaction.suggestion_id][type]+=1;
+    if(reaction.user_id===user.id)mine[reaction.suggestion_id]=type;
   }
-  S.voteCounts=counts;
-  S.myVotes=mine;
+  S.reactionCounts=reactionCounts;
+  S.myReactions=mine;
 }
 
 async function submitFromUI(){
@@ -123,21 +132,30 @@ async function submitFromUI(){
   }
 }
 
-async function toggleVote(id){
-  if(S.busy||!user)return;
+async function setReaction(id,type){
+  if(S.busy||!user||!['like','dislike'].includes(type))return;
   const item=S.items.find(x=>x.id===id);
   if(!item||item.status!=='open')return;
-  S.busy=true;setMessage(hasVoted(id)?'Vote wird entfernt …':'Vote wird gespeichert …');rerender();
+  const current=myReaction(id);
+  S.busy=true;
+  setMessage(current===type?'Bewertung wird entfernt …':current?'Bewertung wird geändert …':'Bewertung wird gespeichert …');
+  rerender();
   try{
     let result;
-    if(hasVoted(id))result=await sb.from('feedback_votes_s2').delete().eq('suggestion_id',id).eq('user_id',user.id);
-    else result=await sb.from('feedback_votes_s2').insert({suggestion_id:id,user_id:user.id});
+    if(current===type){
+      result=await sb.from('feedback_votes_s2').delete().eq('suggestion_id',id).eq('user_id',user.id);
+    }else if(current){
+      result=await sb.from('feedback_votes_s2').update({vote_type:type}).eq('suggestion_id',id).eq('user_id',user.id);
+    }else{
+      result=await sb.from('feedback_votes_s2').insert({suggestion_id:id,user_id:user.id,vote_type:type});
+    }
     if(result.error)throw result.error;
     await refresh();
-    setMessage(hasVoted(id)?'Dein Vote wurde gespeichert.':'Dein Vote wurde entfernt.');
+    const now=myReaction(id);
+    setMessage(now==='like'?'Als „Gefällt mir“ gespeichert.':now==='dislike'?'Als „Gefällt mir nicht“ gespeichert.':'Deine Bewertung wurde entfernt.');
   }catch(err){
-    console.error('CNC feedback vote',err);
-    setMessage('Vote konnte nicht geändert werden. Bitte erneut versuchen.',true);
+    console.error('CNC feedback reaction',err);
+    setMessage('Bewertung konnte nicht geändert werden. Bitte erneut versuchen.',true);
   }finally{
     S.busy=false;rerender();
   }
@@ -167,7 +185,7 @@ async function setStatus(id,status){
 
 export async function initCncFeedback(ctx){
   sb=ctx.supabase;user=ctx.user;readState=ctx.readState||(()=>null);
-  const api={render,refresh,submitFromUI,toggleVote,setStatus,setFilter,state:S};
+  const api={render,refresh,submitFromUI,setReaction,setStatus,setFilter,state:S};
   window.CNC_FEEDBACK=api;
   try{await refresh()}catch(err){console.error('CNC feedback load',err);setMessage('Verbesserungsvorschläge konnten nicht geladen werden.',true)}
   return api;
