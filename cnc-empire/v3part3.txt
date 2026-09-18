@@ -18,7 +18,7 @@ function prestige(){
   const req=prestigeRequirement();if(s.runRevenue<req)return toast('Noch '+euro(req-s.runRevenue)+' bis Meisterprestige');
   const gain=prestigeGain();
   if(!confirm('Meisterlauf neu starten? Du erhältst '+gain+' Meistersterne. Permanente Meister-Upgrades bleiben erhalten.'))return;
-  const keep={name:s.name,prestige:s.prestige+gain,starsSpent:s.starsSpent,starShop:s.starShop,run:s.run+1,friendCodes:s.friendCodes,friends:s.friends,duelBest:s.duelBest,lifetime:s.lifetime,week:s.week,weekKey:s.weekKey,friendCode:s.friendCode,playerSecret:s.playerSecret,onlineRegistered:s.onlineRegistered,buyMode:s.buyMode,customerRep:s.customerRep,customerStats:s.customerStats};
+  const keep={name:s.name,prestige:s.prestige+gain,starsSpent:s.starsSpent,starShop:s.starShop,run:s.run+1,friendCodes:s.friendCodes,friends:s.friends,duelBest:s.duelBest,lifetime:s.lifetime,week:s.week,weekKey:s.weekKey,friendCode:s.friendCode,playerSecret:s.playerSecret,onlineRegistered:s.onlineRegistered,buyMode:s.buyMode,moneyDisplay:s.moneyDisplay,customerRep:s.customerRep,customerStats:s.customerStats};
   s={...fresh(),...keep};save();render();syncOnline(true)
 }
 function randomSecret(){const a=new Uint8Array(32);crypto.getRandomValues(a);return Array.from(a,b=>b.toString(16).padStart(2,'0')).join('')}
