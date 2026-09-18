@@ -10,8 +10,8 @@ const style=await fs.readFile(path.join(root,'style-v2.css'),'utf8');
 
 try{new Function(script);ok('Balance-Bar Script ist syntaktisch gültig')}catch(e){fail(`Balance-Bar Syntaxfehler: ${e.message}`)}
 if(!index.includes('id="persistentBalanceBar"')||!index.includes('id="persistentBalanceValue"'))fail('Persistentes Kontostand-Feld fehlt in index.html');
-if(!index.includes('balance-bar-v1.js?v=1'))fail('Balance-Bar Script ist nicht eingebunden');
-if(!index.includes('style-v2.css?v=4'))fail('Aktuelle Style-Version für Balance-Bar fehlt');
+if(!index.includes('balance-bar-v1.js?r='))fail('Balance-Bar Script ist nicht eingebunden');
+if(!index.includes('style-v2.css?r='))fail('Aktuelle Style-Version für Balance-Bar fehlt');
 if(!style.includes('.persistentBalanceBar{position:sticky'))fail('Kontostand-Feld ist nicht sticky');
 ok('Balance-Bar ist persistent und sticky eingebunden');
 

@@ -11,8 +11,8 @@ const profile=read('v3part6.txt');
 const feedback=read('feedback-v1.js');
 const css=read('feedback-v1.css');
 
-assert(index.includes('feedback-v1.css?v=1'),'feedback stylesheet is loaded');
-assert(auth.includes("import('./feedback-v1.js?v=1')"),'feedback module is initialized after login');
+assert(index.includes('feedback-v1.css?r='),'feedback stylesheet is loaded');
+assert(auth.includes("import('./feedback-v1.js?r='+RELEASE_QUERY)"),'feedback module is initialized after login');
 assert(auth.includes('initFeedbackSystems()'),'feedback init is part of game startup');
 assert(profile.includes('CNC_FEEDBACK?.render?.()'),'profile renders feedback area');
 assert(feedback.includes("feedback_suggestions_s2"),'feedback uses suggestion table');
