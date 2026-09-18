@@ -3,7 +3,7 @@ function render(){
   const unreadCommunity=window.CNC_COMMUNITY?.totalUnreadCount?.()||0;const n=[['shop','⚙️','Werkstatt'],['orders','📋','Aufträge'],['operations','🏭','Betrieb'],['board','🏆','Rangliste'],['online','🌐','Online'],['community','👥','Community'],['profile','👤','Profil']];document.getElementById('nav').innerHTML=n.map(x=>`<button class="${tab===x[0]?'on':''}" onclick="G.tab('${x[0]}')">${x[0]==='community'&&unreadCommunity?'<b class="communityNavBadge">'+(unreadCommunity>99?'99+':unreadCommunity)+'</b>':''}<span>${x[1]}</span>${x[2]}</button>`).join('')
 }
 window.G={
-  tap,buy,setBuyMode,acceptOffer,rerollOffers,orderNew,claim,buyStar,prestige,copyCode,addFriend,removeFriend,startDuel,
+  tap,buy,setBuyMode,acceptOffer,rerollOffers,orderNew,claim,buyStar,buyStaffSlot,prestige,copyCode,addFriend,removeFriend,startDuel,
   refreshFriends:()=>loadFriends(true),
   community:x=>{if(['suggestions','news','polls'].includes(x)){communityTab=x;render();if(x==='suggestions')window.CNC_FEEDBACK?.refresh?.().then(()=>render());else if(x==='news')window.CNC_COMMUNITY?.openNews?.().then(()=>render());else window.CNC_COMMUNITY?.openPolls?.().then(()=>render())}},
   openNews:()=>{if(!duel){tab='community';communityTab='news';render();window.CNC_COMMUNITY?.openNews?.().then(()=>render())}},
