@@ -10,9 +10,10 @@ window.G={
   openCommunityUpdates:()=>{if(!duel){tab='community';communityTab=(window.CNC_COMMUNITY?.unreadCount?.()||0)?'news':'polls';render();const fn=communityTab==='news'?window.CNC_COMMUNITY?.openNews:window.CNC_COMMUNITY?.openPolls;fn?.().then(()=>render())}},
   tab:x=>{if(!duel){tab=x;render();if(x==='board'||x==='profile')loadFriends();if(x==='online')window.CNC_ONLINE?.refresh?.().then(()=>render());if(x==='operations')window.CNC_OPERATIONS?.refresh?.().then(()=>render());if(x==='community'){window.CNC_FEEDBACK?.refresh?.().then(()=>render());window.CNC_COMMUNITY?.refresh?.().then(()=>render())}}},
   name:()=>{s.name=document.getElementById('nm').value.trim()||'Meine Werkstatt';save();toast('Name gespeichert');render();syncOnline(true)},
+  moneyDisplay:on=>{s.moneyDisplay=on?'scientific':'standard';save();window.CNC_BALANCE_BAR?.update?.();render();toast(on?'Kompakte Geldanzeige aktiviert':'Normale Geldanzeige aktiviert')},
   reset:()=>{if(confirm('Spielstand wirklich löschen? Dein Freundescode geht dabei ebenfalls verloren.')){localStorage.removeItem(K);localStorage.removeItem(OLDK);location.reload()}}
 };
-window.CNC_GAME_BRIDGE={getState:()=>s,partRate:()=>partRate(),spend:v=>{v=Math.max(0,Number(v)||0);if(s.money<v)return false;s.money-=v;save();return true},earn:v=>{v=Math.max(0,Number(v)||0);if(v>0){add(v);save()}},save:()=>save(),render:()=>render()};
+window.CNC_GAME_BRIDGE={getState:()=>s,partRate:()=>partRate(),formatMoney:n=>euro(n),spend:v=>{v=Math.max(0,Number(v)||0);if(s.money<v)return false;s.money-=v;save();return true},earn:v=>{v=Math.max(0,Number(v)||0);if(v>0){add(v);save()}},save:()=>save(),render:()=>render()};
 offline();render();ensureOnline().then(()=>{render();syncOnline(true);loadFriends()});
 setInterval(()=>{if(!duel){const v=auto();if(v){add(v);if(s.order)s.order.done=Math.min(s.order.q,s.order.done+partRate());save();render()}syncOnline()}},1000);
 document.addEventListener('visibilitychange',()=>{if(document.hidden)syncOnline(true);else window.CNC_COMMUNITY?.refresh?.().then(()=>render())});
