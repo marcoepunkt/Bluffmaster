@@ -58,14 +58,14 @@ for(const marker of forbiddenGame){if(game.includes(marker))fail(`Alte Balance-L
 const index=await fs.readFile(path.join(root,'index.html'),'utf8');
 if(index.includes('active-production-v1.js'))fail('Veralteter Active-Production-Patch ist wieder eingebunden');
 ok('Kein alter Active-Production-Patch geladen');
-if(!index.includes('auth-cloud-v3.js?v=16'))fail('Aktueller Cloud-Loader fehlt in index.html');
+if(!index.includes('auth-cloud-v3.js?r='))fail('Aktueller Cloud-Loader fehlt in index.html');
 ok('Aktueller Cloud-Loader eingebunden');
-if(!index.includes('clan-events-bootstrap-v1.js?v=5'))fail('Aktueller Firmen-Cup-Bootstrap fehlt');
+if(!index.includes('clan-events-bootstrap-v1.js?r='))fail('Aktueller Firmen-Cup-Bootstrap fehlt');
 ok('Aktueller Firmen-Cup-Bootstrap eingebunden');
 
 const auth=await fs.readFile(path.join(root,'auth-cloud-v3.js'),'utf8');
 try{new Function(auth);ok('Cloud-Loader ist syntaktisch gültig')}catch(e){fail(`Cloud-Loader-Syntaxfehler: ${e.message}`)}
-for(const marker of ['player_saves_s2',"GAME_PART_VERSION='11'", "new Function(parts.join(''))","operations-v1.js?v=9"]){
+for(const marker of ['player_saves_s2',"GAME_PART_VERSION='12'", "new Function(parts.join(''))","operations-v1.js?r='+RELEASE_QUERY"]){
   if(!auth.includes(marker))fail(`Cloud-Loader-Invariante fehlt: ${marker}`);
   ok(`Cloud-Invariante ${marker}`);
 }
