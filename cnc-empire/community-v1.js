@@ -1,12 +1,12 @@
 let sb=null,user=null;
-const S={news:[],polls:[],options:[],votes:[],readNewsIds:[],readPollIds:[],isAdmin:false,busy:false,message:'',error:''};
+const S={news:[],polls:[],options:[],votes:[],readNewsIds:[],hiddenNewsIds:[],readPollIds:[],showHiddenNews:false,isAdmin:false,busy:false,message:'',error:''};
 
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function date(iso){try{return new Intl.DateTimeFormat('de-DE',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}).format(new Date(iso))}catch{return '—'}}
 function rerender(){window.CNC_GAME_BRIDGE?.render?.()}
 function setMessage(text,error=false){S.message=error?'':text;S.error=error?text:''}
 function messageHtml(){return S.error?'<div class="communityMessage error">'+esc(S.error)+'</div>':S.message?'<div class="communityMessage ok">'+esc(S.message)+'</div>':''}
-function unreadNews(){return S.news.filter(n=>n.published!==false&&!S.readNewsIds.includes(n.id))}
+function unreadNews(){return S.news.filter(n=>n.published!==false&&!S.hiddenNewsIds.includes(n.id)&&!S.readNewsIds.includes(n.id))}
 function unreadPolls(){return S.polls.filter(p=>p.status==='open'&&!S.readPollIds.includes(p.id))}
 function unreadCount(){return unreadNews().length}
 function unreadPollCount(){return unreadPolls().length}
@@ -29,7 +29,7 @@ async function refresh(){
     sb.from('community_polls_s2').select('id,question,status,created_at,updated_at,created_by').order('created_at',{ascending:false}).limit(50),
     sb.from('community_poll_options_s2').select('id,poll_id,label,position').order('position',{ascending:true}).limit(500),
     sb.from('community_poll_votes_s2').select('poll_id,option_id,user_id').limit(10000),
-    sb.from('community_news_reads_s2').select('news_id').eq('user_id',user.id).limit(500),
+    sb.from('community_news_reads_s2').select('news_id,hidden').eq('user_id',user.id).limit(500),
     sb.from('community_poll_reads_s2').select('poll_id').eq('user_id',user.id).limit(500)
   ]);
   for(const result of [adminRes,newsRes,pollsRes,optionsRes,votesRes,readsRes,pollReadsRes])if(result.error)throw result.error;
@@ -39,13 +39,18 @@ async function refresh(){
   S.options=Array.isArray(optionsRes.data)?optionsRes.data:[];
   S.votes=Array.isArray(votesRes.data)?votesRes.data:[];
   S.readNewsIds=(Array.isArray(readsRes.data)?readsRes.data:[]).map(x=>x.news_id).filter(Boolean);
+  S.hiddenNewsIds=(Array.isArray(readsRes.data)?readsRes.data:[]).filter(x=>x.hidden===true).map(x=>x.news_id).filter(Boolean);
   S.readPollIds=(Array.isArray(pollReadsRes.data)?pollReadsRes.data:[]).map(x=>x.poll_id).filter(Boolean);
 }
 
 function newsItem(n){
-  const fresh=!S.readNewsIds.includes(n.id)?'<span class="communityNewTag">NEU</span>':'';
-  const admin=S.isAdmin?'<button class="btn danger mini" onclick="CNC_COMMUNITY.deleteNews(\''+esc(n.id)+'\')">Löschen</button>':'';
-  return '<article class="communityNewsItem '+(fresh?'unread':'')+'"><div class="communityItemHead"><div><div class="communityNewsTitle"><div class="name">'+esc(n.title)+'</div>'+fresh+'</div><div class="muted">'+date(n.created_at)+'</div></div>'+admin+'</div><div class="communityBody">'+esc(n.body)+'</div></article>';
+  const hidden=S.hiddenNewsIds.includes(n.id);
+  const fresh=!hidden&&!S.readNewsIds.includes(n.id)?'<span class="communityNewTag">NEU</span>':'';
+  const personal=hidden
+    ?'<button class="btn secondary mini" onclick="CNC_COMMUNITY.restoreNews(\''+esc(n.id)+'\')">Wieder anzeigen</button>'
+    :'<button class="btn secondary mini" onclick="CNC_COMMUNITY.hideNews(\''+esc(n.id)+'\')">Für mich ausblenden</button>';
+  const admin=S.isAdmin?'<button class="btn danger mini" onclick="CNC_COMMUNITY.deleteNews(\''+esc(n.id)+'\')">Für alle löschen</button>':'';
+  return '<article class="communityNewsItem '+(fresh?'unread':'')+(hidden?' hiddenNews':'')+'"><div class="communityItemHead"><div><div class="communityNewsTitle"><div class="name">'+esc(n.title)+'</div>'+fresh+'</div><div class="muted">'+date(n.created_at)+'</div></div><div class="communityNewsActions">'+personal+admin+'</div></div><div class="communityBody">'+esc(n.body)+'</div></article>';
 }
 
 async function markNewsRead(){
@@ -94,8 +99,11 @@ async function openPolls(){
 
 function renderNews(){
   const admin=S.isAdmin?'<div class="card item communityAdminCard"><div class="communityAdminTag">ADMIN · NEWS VERÖFFENTLICHEN</div><input id="communityNewsTitle" class="field" maxlength="100" placeholder="Überschrift"><textarea id="communityNewsBody" class="field communityTextArea" maxlength="3000" placeholder="Neuigkeit oder Ankündigung"></textarea><button class="btn communityWideBtn" '+(S.busy?'disabled':'')+' onclick="CNC_COMMUNITY.publishNewsFromUI()">📢 Veröffentlichen</button></div>':'';
-  const list=S.news.length?S.news.map(newsItem).join(''):'<div class="card item"><div class="muted">Noch keine Community-News veröffentlicht.</div></div>';
-  return '<div class="section">📢 Community-News</div>'+messageHtml()+admin+'<div class="card item communityList">'+list+'</div>';
+  const hiddenCount=S.hiddenNewsIds.filter(id=>S.news.some(n=>n.id===id)).length;
+  const visible=S.news.filter(n=>S.showHiddenNews||!S.hiddenNewsIds.includes(n.id));
+  const list=visible.length?visible.map(newsItem).join(''):'<div class="card item"><div class="muted">'+(hiddenCount?'Alle vorhandenen News sind für dich ausgeblendet.':'Noch keine Community-News veröffentlicht.')+'</div></div>';
+  const hiddenToggle=hiddenCount?'<button class="btn secondary communityHiddenToggle" onclick="CNC_COMMUNITY.toggleHiddenNews()">'+(S.showHiddenNews?'Ausgeblendete verbergen':'👁️ '+hiddenCount+' ausgeblendete '+(hiddenCount===1?'News':'News')+' anzeigen')+'</button>':'';
+  return '<div class="section">📢 Community-News</div>'+messageHtml()+admin+'<div class="card item communityList">'+list+'</div>'+hiddenToggle;
 }
 
 function pollOptions(poll){
@@ -147,8 +155,32 @@ async function publishNewsFromUI(){
   finally{S.busy=false;rerender()}
 }
 
+async function hideNews(id){
+  if(S.busy||!user||!confirm('Diese News nur für dich ausblenden?'))return;
+  S.busy=true;setMessage('News wird für dich ausgeblendet …');rerender();
+  try{
+    const {error}=await sb.from('community_news_reads_s2').upsert({news_id:id,user_id:user.id,read_at:new Date().toISOString(),hidden:true},{onConflict:'news_id,user_id'});
+    if(error)throw error;
+    await refresh();setMessage('News wurde nur für dich ausgeblendet.');
+  }catch(err){console.error('CNC community hide news',err);setMessage('News konnte nicht ausgeblendet werden.',true)}
+  finally{S.busy=false;rerender()}
+}
+
+async function restoreNews(id){
+  if(S.busy||!user)return;
+  S.busy=true;setMessage('News wird wieder eingeblendet …');rerender();
+  try{
+    const {error}=await sb.from('community_news_reads_s2').update({hidden:false}).eq('news_id',id).eq('user_id',user.id);
+    if(error)throw error;
+    await refresh();setMessage('News wird wieder angezeigt.');
+  }catch(err){console.error('CNC community restore news',err);setMessage('News konnte nicht wieder eingeblendet werden.',true)}
+  finally{S.busy=false;rerender()}
+}
+
+function toggleHiddenNews(){S.showHiddenNews=!S.showHiddenNews;rerender()}
+
 async function deleteNews(id){
-  if(!S.isAdmin||S.busy||!confirm('Diese News wirklich löschen?'))return;
+  if(!S.isAdmin||S.busy||!confirm('Diese News wirklich für alle Spieler löschen?'))return;
   S.busy=true;setMessage('News wird gelöscht …');rerender();
   try{
     const {error}=await sb.from('community_news_s2').delete().eq('id',id);
@@ -223,7 +255,7 @@ async function deletePoll(id){
 
 export async function initCncCommunity(ctx){
   sb=ctx.supabase;user=ctx.user;
-  const api={renderNews,renderPolls,renderNewsAlert,unreadCount,unreadPollCount,totalUnreadCount,openNews,markNewsRead,openPolls,markPollsRead,refresh,publishNewsFromUI,deleteNews,createPollFromUI,votePoll,setPollStatus,deletePoll,state:S};
+  const api={renderNews,renderPolls,renderNewsAlert,unreadCount,unreadPollCount,totalUnreadCount,openNews,markNewsRead,openPolls,markPollsRead,refresh,publishNewsFromUI,hideNews,restoreNews,toggleHiddenNews,deleteNews,createPollFromUI,votePoll,setPollStatus,deletePoll,state:S};
   window.CNC_COMMUNITY=api;
   try{await refresh()}catch(err){console.error('CNC community load',err);setMessage('Community-News und Umfragen konnten nicht geladen werden.',true)}
   return api;

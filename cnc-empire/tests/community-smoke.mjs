@@ -21,6 +21,9 @@ assert(community.includes("community_polls_s2"),'community module uses polls tab
 assert(community.includes("community_poll_options_s2"),'community module uses poll options table');
 assert(community.includes("community_poll_votes_s2"),'community module uses poll votes table');
 assert(community.includes("community_news_reads_s2"),'community module stores per-player news read state');
+assert(community.includes("hiddenNewsIds")&&community.includes("hidden:true"),'personal News hiding is stored per player');
+assert(community.includes('hideNews')&&community.includes('restoreNews')&&community.includes('toggleHiddenNews'),'personal hide and restore actions exist');
+assert(community.includes('Für mich ausblenden')&&community.includes('Für alle löschen'),'personal hide and global admin delete are clearly separated');
 assert(community.includes("community_poll_reads_s2"),'community module stores per-player poll read state');
 assert(community.includes('renderNewsAlert')&&community.includes('unreadCount')&&community.includes('unreadPollCount')&&community.includes('totalUnreadCount'),'combined Community notification API exists');
 assert(community.includes('markNewsRead')&&community.includes('openNews'),'opening News marks visible News as read');
@@ -31,6 +34,7 @@ assert(community.includes("upsert({poll_id:pollId,user_id:user.id")||community.i
 assert(community.includes('votePoll')&&community.includes('.update({option_id:optionId})'),'players can vote and switch poll choice');
 assert(community.includes("feedback_admins_s2"),'existing admin membership protects admin UI');
 assert(css.includes('.communityPollOption.active')&&css.includes('.communityAdminCard'),'community admin and poll styles exist');
+assert(css.includes('.communityNewsActions')&&css.includes('.communityHiddenToggle'),'personal News hide controls are styled');
 assert(css.includes('.communityNavBadge')&&css.includes('.communityNewsAlert'),'News badge and workshop alert styles exist');
 assert(core.includes('communitySubBadge')&&core.includes("x[0]==='polls'&&unreadPolls"),'News and Poll subtabs show unread badges');
 assert(core.includes('communityNavBadge')&&core.includes('totalUnreadCount'),'main Community tab shows combined unread badge');
