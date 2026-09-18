@@ -51,7 +51,7 @@ function weekKey(){
 const fresh=()=>({
   name:'Meine Werkstatt',money:120,lifetime:120,runRevenue:120,week:0,weekKey:weekKey(),prestige:0,run:0,tap:1,
   m:{manual:1,cnc:0,bar:0,turnmill:0,robot:0,lights:0,swiss:0,grind:0,fiveaxis:0,fms:0,smart:0},
-  friendCodes:[],friends:[],last:Date.now(),order:null,offers:[],duelBest:0,contractStreak:0,
+  friendCodes:[],friends:[],last:Date.now(),offlineSince:0,order:null,offers:[],duelBest:0,contractStreak:0,
   friendCode:'',playerSecret:'',onlineRegistered:false,buyMode:'1',moneyDisplay:'standard',starShop:{process:0,tooling:0,sales:0,night:0,planning:0},staffExpansion:{operator:0,setter:0,programmer:0,quality:0,master:0},starsSpent:0
 });
 let raw={};
@@ -64,6 +64,7 @@ for(const [id,rule] of Object.entries(staffExpansionRules))s.staffExpansion[id]=
 if(!Array.isArray(s.friendCodes))s.friendCodes=[];
 if(!Array.isArray(s.friends))s.friends=[];
 if(!Array.isArray(s.offers))s.offers=[];
+if(!Number.isFinite(Number(s.offlineSince))||Number(s.offlineSince)<0)s.offlineSince=0;
 if(s.runRevenue==null)s.runRevenue=s.run===0?(s.lifetime||120):120;
 if(s.starsSpent==null)s.starsSpent=Object.entries(s.starShop).reduce((sum,[id,lv])=>sum+spentFor(id,Number(lv)||0),0);
 if(!['1','10','max'].includes(String(s.buyMode)))s.buyMode='1';
