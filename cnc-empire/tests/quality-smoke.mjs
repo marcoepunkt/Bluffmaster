@@ -6,9 +6,10 @@ const fail=msg=>{throw new Error(msg)};
 const ok=msg=>console.log('✅',msg);
 const quality=await fs.readFile(path.join(root,'quality-systems-v1.js'),'utf8');
 const index=await fs.readFile(path.join(root,'index.html'),'utf8');
+const ordersCore=await fs.readFile(path.join(root,'v3part5.txt'),'utf8');
 
 try{new Function(quality);ok('Quality-Modul ist syntaktisch gültig')}catch(e){fail(`Quality-Syntaxfehler: ${e.message}`)}
-for(const marker of ['Messschieber','Bügelmessschraube','Höhenmessgerät','Rauheitsmessgerät','Konturmessgerät','3D-KMG','ISO 9001','IATF 16949','ISO 13485','EN 9100','function offerEligibility','function resolveInspection','qualitySystem']){
+for(const marker of ['Messschieber','Bügelmessschraube','Höhenmessgerät','Rauheitsmessgerät','Konturmessgerät','3D-KMG','ISO 9001','IATF 16949','ISO 13485','EN 9100','function offerEligibility','function resolveInspection','renderOrderInspection','qualitySystem']){
   if(!quality.includes(marker))fail(`Quality-Invariante fehlt: ${marker}`);
   ok(`Quality-Invariante ${marker}`);
 }
@@ -37,6 +38,10 @@ if(!window.CNC_QUALITY)fail('CNC_QUALITY wurde beim Start nicht erzeugt');
 ok('Quality-Modul hängt sich an den geladenen Betrieb an');
 if(!window.CNC_OPERATIONS.render().includes('Messraum & Prüfmittel')||!window.CNC_OPERATIONS.render().includes('Zertifizierungen'))fail('Quality-Bereich wird nicht an Betrieb angehängt');
 ok('Messraum und Zertifizierungen werden gerendert');
+if(window.CNC_OPERATIONS.render().includes('🧪 Qualitätsprüfung'))fail('Konkrete QS-Prüfung darf nicht mehr im Bereich Betrieb gerendert werden');
+ok('Konkrete QS-Prüfung wurde aus Betrieb entfernt');
+if(!ordersCore.includes('CNC_QUALITY?.renderOrderInspection?.()'))fail('Auftragsseite bindet die QS-Prüfung nicht ein');
+ok('QS-Prüfung wird direkt in Aufträge eingebunden');
 
 await window.CNC_QUALITY.buyGauge('caliper');
 if(window.CNC_QUALITY.state().gaugeLevel!==1)fail('Messschieber-Kauf erhöht Messraum nicht auf Q1');
@@ -54,6 +59,11 @@ if(!window.CNC_QUALITY.certReady('iso9001'))fail('ISO 9001 sollte mit Q2, QS und
 await window.CNC_QUALITY.auditCert('iso9001');
 if(!window.CNC_QUALITY.state().certs.iso9001)fail('ISO-9001-Audit setzt Zertifikat nicht aktiv');
 ok('Zertifizierungsaudit funktioniert');
+const qState=window.CNC_QUALITY.state();
+qState.pendingInspection={order:{customerId:'medical',customer:'Medizintechnik',name:'QS-Testauftrag',pay:10000,qualityLevel:2},nominal:20,tolerance:.05,measured:20.02,correct:'release',createdAt:Date.now()};
+const inlineInspection=window.CNC_QUALITY.renderOrderInspection();
+if(!inlineInspection.includes('Qualitätsprüfung')||!inlineInspection.includes('QS-Testauftrag'))fail('Inline-QS-Karte wird für offene Prüfung nicht gerendert');
+ok('Offene QS-Prüfung wird als Auftragskarte gerendert');
 if(saves<1||renders<1)fail('Quality-System bindet Speichern/Rendern nicht an den Spielzustand');
 ok('Quality-System ist an Speichern und Rendern angebunden');
 
