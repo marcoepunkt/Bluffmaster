@@ -15,7 +15,7 @@ const UNLOCK=25000;
 const game=()=>window.CNC_GAME_BRIDGE||null;
 const state=()=>game()?.getState?.()||null;
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const euro=n=>new Intl.NumberFormat('de-DE',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(Number(n)||0);
+const euro=n=>window.CNC_FORMAT_MONEY?.(n)??new Intl.NumberFormat('de-DE',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(Number(n)||0);
 const clamp=(n,min,max)=>Math.min(max,Math.max(min,Number(n)||0));
 function notify(text){const e=document.createElement('div');e.className='toast';e.textContent=text;document.body.appendChild(e);setTimeout(()=>e.remove(),3200)}
 function ensureState(){
