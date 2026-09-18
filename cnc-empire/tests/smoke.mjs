@@ -42,7 +42,7 @@ const required=[
   'function orderMarketMult(mat)',
   'function beginOffline()',
   'settleOffline:()=>offline()',
-  'if(!duel&&!document.hidden)'
+  'if(!duel&&!document.hidden)',
   'function render()',
   'window.G=',
   'window.CNC_GAME_BRIDGE=',
