@@ -3,6 +3,11 @@ const euro=n=>{const v=Number(n)||0;if(s.moneyDisplay==='scientific'&&Math.abs(v
 window.CNC_FORMAT_MONEY=euro;
 const num=n=>new Intl.NumberFormat('de-DE',{maximumFractionDigits:0}).format(Number(n)||0);
 function save(){s.last=Date.now();localStorage.setItem(K,JSON.stringify(s))}
+function auditCloud(type,detail={}){
+  const entry={at:new Date().toISOString(),type:String(type||'event').slice(0,40),run:Number(s.run)||0,prestige:Number(s.prestige)||0,money:Math.max(0,Number(s.money)||0),runRevenue:Math.max(0,Number(s.runRevenue)||0),detail};
+  s.cloudAudit=[...(Array.isArray(s.cloudAudit)?s.cloudAudit:[]),entry].slice(-20);
+  save();return entry
+}
 function prestigeRequirement(){return Math.round(10000000*Math.pow(1.75,s.run||0))}
 function prestigeGain(){const req=prestigeRequirement();if(s.runRevenue<req)return 0;return Math.max(1,1+Math.floor(Math.log(s.runRevenue/req)/Math.log(4)))}
 function prestigeMult(){return 1+Math.min(.60,s.prestige*.03)}
