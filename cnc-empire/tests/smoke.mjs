@@ -184,8 +184,7 @@ async function runRuntimeSmoke(){
   if(!env.getElement('root').innerHTML.includes('Personalentwicklung'))fail('Personalentwicklung wird im Meisterzentrum nicht angezeigt');
   ok('Prestige-Personalplatz kostet korrekt Sterne und wird dauerhaft gespeichert');
 
-  let resetStaffCalls=0;
-  window.CNC_OPERATIONS={productionMultiplier:()=>1,resetStaffForPrestige:()=>{resetStaffCalls++;return true}};
+  window.CNC_OPERATIONS={productionMultiplier:()=>1};
   state.runRevenue=10000000;
   const prestigeBefore=state.prestige;
   const runBefore=state.run;
@@ -193,15 +192,14 @@ async function runRuntimeSmoke(){
   state=window.CNC_GAME_BRIDGE.getState();
   if(state.prestige!==prestigeBefore+1||state.run!==runBefore+1)fail('Erster Prestige-Reset liefert nicht exakt einen Stern und einen neuen Lauf');
   if(state.staffExpansion.operator!==slotBefore+1)fail('Prestige-Personalplatz ging beim Meisterlauf verloren');
-  if(resetStaffCalls!==1)fail('Eingestellte Mitarbeiter werden beim Meisterlauf nicht zurückgesetzt');
-  ok('Prestige-Reset behält Personalplätze und setzt eingestellte Mitarbeiter zurück');
+  ok('Prestige-Reset behält Personalplätze; Betriebsmitarbeiter werden nicht vom Kern zurückgesetzt');
 }
 await runRuntimeSmoke();
 
 const operations=await fs.readFile(path.join(root,'operations-v1.js'),'utf8');
 const operationsCompile=operations.replace(/\bexport\s+(?=async function|function|const|let|class)/g,'').replace(/export\s*\{[^}]*\};?/g,'');
 try{new Function(operationsCompile);ok('Betriebsmodul ist syntaktisch gültig')}catch(e){fail(`Betriebsmodul-Syntaxfehler: ${e.message}`)}
-for(const marker of ['function dashboardData()','function bottleneckData()','function renderDashboard()','Engpassanalyse','dashboardData,stageRates,qualityYield','function staffMax(id)','resetStaffForPrestige','Prestige-Platz','const coreAlreadyRenders=','Date.now()-lastUiRender>=2000']){
+for(const marker of ['function dashboardData()','function bottleneckData()','function renderDashboard()','Engpassanalyse','dashboardData,stageRates,qualityYield','function staffMax(id)','Prestige-Platz','const coreAlreadyRenders=','Date.now()-lastUiRender>=2000']){
   if(!operations.includes(marker))fail(`Dashboard/Performance-Invariante fehlt: ${marker}`);
   ok(`Dashboard/Performance-Invariante ${marker}`);
 }
@@ -214,5 +212,8 @@ for(const marker of ['const REWARD_REFRESH_MS=300000;','async function refreshRe
 }
 if(clan.includes('setInterval(refreshAll,30000)'))fail('Firmen-Cup lädt wieder alle Historiedaten alle 30 Sekunden');
 ok('Firmen-Cup-Historie ist gedrosselt');
+if(game.includes('resetStaffForPrestige'))fail('Prestige darf Betriebsmitarbeiter nicht mehr zurücksetzen');
+if(operations.includes('resetStaffForPrestige'))fail('Betriebsmodul enthält noch alten Mitarbeiter-Reset');
+ok('Mitarbeiter-Reset beim Prestige ist vollständig entfernt');
 
 console.log('\nCNC EMPIRE Smoke-Test: GRÜN');
