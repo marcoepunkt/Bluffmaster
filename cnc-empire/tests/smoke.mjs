@@ -39,6 +39,8 @@ const required=[
   'staffExpansion',
   'cloudMeta',
   'cloudAudit',
+  'Cloud-Sicherheit',
+  'Spielstand-Revision',
   'function auditCloud(type,detail={})',
   'function buyStaffSlot(id)',
   'Personalentwicklung',
@@ -122,7 +124,8 @@ async function runRuntimeSmoke(){
   if(sci!=='1,25e12 €')fail('Wissenschaftliche Geldanzeige formatiert 1,25e12 nicht korrekt: '+sci);
   window.G.moneyDisplay(false);
   if(window.CNC_GAME_BRIDGE.getState().moneyDisplay!=='standard')fail('Geldanzeige lässt sich nicht zurück auf Standard stellen');
-  ok('Profil-Schalter und wissenschaftliche Geldanzeige funktionieren');
+  if(!env.getElement('root').innerHTML.includes('Cloud-Sicherheit'))fail('Profil enthält keine Cloud-Sicherheitsanzeige');
+  ok('Profil-Schalter, Geldanzeige und Cloud-Sicherheitsanzeige funktionieren');
 
   state=window.CNC_GAME_BRIDGE.getState();
   const cashBefore=state.money;
