@@ -311,14 +311,10 @@ function start(){
   document.addEventListener('visibilitychange',()=>{if(document.hidden)persist(true)});
   window.addEventListener('pagehide',()=>persist(true));
 }
-function resetStaffForPrestige(){
-  for(const id of Object.keys(S.staff))S.staff[id]=0;
-  markDirty();persist(true);rerender();return true
-}
 function stop(){if(tickTimer)clearInterval(tickTimer);if(syncTimer)clearInterval(syncTimer);tickTimer=null;syncTimer=null;persist(true)}
 
 export async function initCncOperations(ctx){
   sb=ctx.supabase;user=ctx.user;readState=ctx.readState||(()=>null);await load();
-  const api={render,refresh,hire,buyUpgrade,setShift,setMaterial,buyMaterial,maintain,productionMultiplier,dashboardData,stageRates,qualityYield,staffMax,resetStaffForPrestige,get state(){return S},start,stop};
+  const api={render,refresh,hire,buyUpgrade,setShift,setMaterial,buyMaterial,maintain,productionMultiplier,dashboardData,stageRates,qualityYield,staffMax,get state(){return S},start,stop};
   window.CNC_OPERATIONS=api;start();return api;
 }
