@@ -37,6 +37,9 @@ const required=[
   'moneyDisplay',
   'window.CNC_FORMAT_MONEY=euro',
   'staffExpansion',
+  'cloudMeta',
+  'cloudAudit',
+  'function auditCloud(type,detail={})',
   'function buyStaffSlot(id)',
   'Personalentwicklung',
   'function orderMarketMult(mat)',
@@ -74,7 +77,7 @@ ok('Aktueller Firmen-Cup-Bootstrap eingebunden');
 
 const auth=await fs.readFile(path.join(root,'auth-cloud-v3.js'),'utf8');
 try{new Function(auth);ok('Cloud-Loader ist syntaktisch gültig')}catch(e){fail(`Cloud-Loader-Syntaxfehler: ${e.message}`)}
-for(const marker of ['player_saves_s2',"GAME_PART_VERSION='12'", "new Function(parts.join(''))","operations-v1.js?r='+RELEASE_QUERY"]){
+for(const marker of ['player_saves_s2',"GAME_PART_VERSION='12'", "new Function(parts.join(''))","operations-v1.js?r='+RELEASE_QUERY","const INSTANCE_ID=", ".eq('updated_at',cloudUpdatedAt)", "Cloud-Konflikt · anderer Tab ist neuer", "window.CNC_FORCE_CLOUD_SAVE=async()=>flushCloud(true)"]){
   if(!auth.includes(marker))fail(`Cloud-Loader-Invariante fehlt: ${marker}`);
   ok(`Cloud-Invariante ${marker}`);
 }
@@ -192,7 +195,11 @@ async function runRuntimeSmoke(){
   state=window.CNC_GAME_BRIDGE.getState();
   if(state.prestige!==prestigeBefore+1||state.run!==runBefore+1)fail('Erster Prestige-Reset liefert nicht exakt einen Stern und einen neuen Lauf');
   if(state.staffExpansion.operator!==slotBefore+1)fail('Prestige-Personalplatz ging beim Meisterlauf verloren');
-  ok('Prestige-Reset behält Personalplätze; Betriebsmitarbeiter werden nicht vom Kern zurückgesetzt');
+  const prestigeAudit=(state.cloudAudit||[]).find(x=>x?.type==='prestige');
+  if(!prestigeAudit)fail('Prestige wird nicht im Cloud-Audit protokolliert');
+  if(prestigeAudit.detail?.gainedStars!==1)fail('Prestige-Audit enthält falsche Sternzahl');
+  if((state.cloudAudit||[]).length>20)fail('Cloud-Audit wächst über 20 Einträge');
+  ok('Prestige-Reset behält Personalplätze und wird im Cloud-Audit protokolliert');
 }
 await runRuntimeSmoke();
 
