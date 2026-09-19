@@ -7,7 +7,8 @@ const SAVE_TABLE='player_saves_s2';
 const GAME_PART_VERSION='12';
 const RELEASE_QUERY=encodeURIComponent(window.CNC_RELEASE||'s2');
 const CLOUD_INTERVAL_MS=5000;
-let supabase=null,session=null,gameLoaded=false,cloudTimer=null,cloudBusy=false,lastUploaded='',onlineSystems=null,operationsSystems=null,feedbackSystems=null,communitySystems=null;
+let supabase=null,session=null,gameLoaded=false,cloudTimer=null,cloudBusy=false,cloudInFlight=null,cloudUpdatedAt=null,cloudRevision=0,cloudConflict=false,lastUploaded='',onlineSystems=null,operationsSystems=null,feedbackSystems=null,communitySystems=null;
+const INSTANCE_ID=(()=>{try{const k='cncEmpireCloudInstanceV1';let v=sessionStorage.getItem(k);if(!v){v=crypto.randomUUID?.()||('tab-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2));sessionStorage.setItem(k,v)}return v}catch{return 'tab-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2)}})();
 const $=id=>document.getElementById(id);
 
 function setMessage(text,type='info'){const el=$('authMessage');if(!el)return;el.textContent=text||'';el.dataset.type=type}
@@ -18,6 +19,9 @@ function readLocalState(){for(const key of [GAME_KEY,OLD_GAME_KEY]){const state=
 function identityOnly(state){if(!state||typeof state!=='object')return {};const out={};if(typeof state.name==='string'&&state.name.trim())out.name=state.name.slice(0,22);if(Array.isArray(state.friendCodes))out.friendCodes=state.friendCodes.slice(0,100);if(Array.isArray(state.friends))out.friends=state.friends.slice(0,100);if(typeof state.friendCode==='string')out.friendCode=state.friendCode;if(typeof state.playerSecret==='string')out.playerSecret=state.playerSecret;if(typeof state.onlineRegistered==='boolean')out.onlineRegistered=state.onlineRegistered;return out}
 function writeLocalState(state){localStorage.setItem(GAME_KEY,JSON.stringify(state));localStorage.removeItem(OLD_GAME_KEY)}
 function clearLocalGame(){localStorage.removeItem(GAME_KEY);localStorage.removeItem(OLD_GAME_KEY)}
+function currentState(){return window.CNC_GAME_BRIDGE?.getState?.()||readLocalState()?.state||null}
+function cloudMetaRevision(state){return Math.max(0,Math.floor(Number(state?.cloudMeta?.revision)||0))}
+function markConflict(){cloudConflict=true;setCloud('Cloud-Konflikt · anderer Tab ist neuer','error')}
 function prepareSeasonLocal(userId){const season=localStorage.getItem(SEASON_KEY);const owner=localStorage.getItem(OWNER_KEY);if(season===CURRENT_SEASON&&owner===userId)return;const legacy=(!owner||owner===userId)?readLocalState():null;const identity=identityOnly(legacy?.state);clearLocalGame();if(Object.keys(identity).length)writeLocalState(identity);localStorage.setItem(SEASON_KEY,CURRENT_SEASON);localStorage.setItem(OWNER_KEY,userId)}
 
 async function readConfig(){
@@ -29,11 +33,76 @@ async function readConfig(){
 }
 async function initSupabase(){const [{createClient},cfg]=await Promise.all([import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.105.0/+esm'),readConfig()]);supabase=createClient(cfg.url,cfg.key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}})}
 async function fetchCloudSave(userId){const {data,error}=await supabase.from(SAVE_TABLE).select('state,updated_at').eq('user_id',userId).maybeSingle();if(error)throw error;return data||null}
-async function uploadState(state){if(!session?.user||cloudBusy||!state||typeof state!=='object')return false;cloudBusy=true;setCloud('Speichert …','busy');try{const raw=JSON.stringify(state);const {error}=await supabase.from(SAVE_TABLE).upsert({user_id:session.user.id,state,updated_at:new Date().toISOString()},{onConflict:'user_id'});if(error)throw error;lastUploaded=raw;setCloud('Saison 2 · Cloud gespeichert','ok');return true}catch(err){console.error('CNC cloud save',err);setCloud(navigator.onLine?'Cloud-Fehler':'Offline – lokal','error');return false}finally{cloudBusy=false}}
-async function reconcileSave(){prepareSeasonLocal(session.user.id);setCloud('Saison 2 wird geladen …','busy');const cloud=await fetchCloudSave(session.user.id);if(cloud?.state){writeLocalState(cloud.state);lastUploaded=JSON.stringify(cloud.state)}else lastUploaded='';localStorage.setItem(OWNER_KEY,session.user.id);localStorage.setItem(SEASON_KEY,CURRENT_SEASON);setCloud('Saison 2 · Cloud aktiv','ok')}
-async function flushCloud(force=false){if(!session?.user)return;const local=readLocalState();if(!local?.state)return;const raw=JSON.stringify(local.state);if(!force&&raw===lastUploaded)return;await uploadState(local.state)}
+async function uploadState(state){
+  if(!session?.user||cloudConflict||!state||typeof state!=='object')return false;
+  cloudBusy=true;setCloud('Speichert …','busy');
+  const savedAt=new Date().toISOString();
+  const revision=Math.max(cloudRevision,cloudMetaRevision(state))+1;
+  const payload={...state,cloudMeta:{revision,writer:INSTANCE_ID,savedAt}};
+  try{
+    let data=null,error=null;
+    if(cloudUpdatedAt){
+      ({data,error}=await supabase.from(SAVE_TABLE)
+        .update({state:payload,updated_at:savedAt})
+        .eq('user_id',session.user.id)
+        .eq('updated_at',cloudUpdatedAt)
+        .select('updated_at')
+        .maybeSingle());
+      if(error)throw error;
+      if(!data){markConflict();return false}
+    }else{
+      ({data,error}=await supabase.from(SAVE_TABLE)
+        .insert({user_id:session.user.id,state:payload,updated_at:savedAt})
+        .select('updated_at')
+        .maybeSingle());
+      if(error){
+        if(String(error.code||'')==='23505'){markConflict();return false}
+        throw error
+      }
+    }
+    state.cloudMeta=payload.cloudMeta;
+    writeLocalState(state);
+    cloudUpdatedAt=data?.updated_at||savedAt;
+    cloudRevision=revision;
+    lastUploaded=JSON.stringify(state);
+    setCloud('Saison 2 · Cloud gespeichert · Rev '+revision,'ok');
+    return true
+  }catch(err){
+    console.error('CNC cloud save',err);
+    setCloud(navigator.onLine?'Cloud-Fehler':'Offline – lokal','error');
+    return false
+  }finally{cloudBusy=false}
+}
+async function reconcileSave(){
+  prepareSeasonLocal(session.user.id);cloudConflict=false;setCloud('Saison 2 wird geladen …','busy');
+  const cloud=await fetchCloudSave(session.user.id);
+  if(cloud?.state){
+    writeLocalState(cloud.state);
+    lastUploaded=JSON.stringify(cloud.state);
+    cloudUpdatedAt=cloud.updated_at||null;
+    cloudRevision=cloudMetaRevision(cloud.state)
+  }else{
+    lastUploaded='';cloudUpdatedAt=null;cloudRevision=0
+  }
+  localStorage.setItem(OWNER_KEY,session.user.id);localStorage.setItem(SEASON_KEY,CURRENT_SEASON);
+  setCloud('Saison 2 · Cloud aktiv · Rev '+cloudRevision,'ok')
+}
+async function flushCloud(force=false){
+  if(!session?.user||cloudConflict)return false;
+  if(cloudInFlight){
+    const ok=await cloudInFlight;
+    if(!force||cloudConflict)return ok;
+    const latest=currentState();if(!latest)return false;
+    if(JSON.stringify(latest)===lastUploaded)return true
+  }
+  const state=currentState();if(!state)return false;
+  const raw=JSON.stringify(state);if(!force&&raw===lastUploaded)return true;
+  cloudInFlight=uploadState(state);
+  try{return await cloudInFlight}finally{cloudInFlight=null}
+}
 function startCloudLoop(){if(cloudTimer)clearInterval(cloudTimer);cloudTimer=setInterval(()=>flushCloud(false),CLOUD_INTERVAL_MS)}
-window.CNC_PREPARE_UPDATE=async()=>{try{window.CNC_GAME_BRIDGE?.save?.()}catch{}await flushCloud(true);return true};
+window.CNC_FORCE_CLOUD_SAVE=async()=>flushCloud(true);
+window.CNC_PREPARE_UPDATE=async()=>{try{window.CNC_GAME_BRIDGE?.save?.()}catch{}return await flushCloud(true)};
 
 function showAccountBar(){const bar=$('accountBar');if(!bar)return;bar.hidden=false;$('accountEmail').textContent=session?.user?.email||'Account'}
 function hideAuth(){$('authGate').hidden=true;$('nav').style.display='';showAccountBar()}
@@ -58,13 +127,13 @@ async function loadGame(){
   startCloudLoop();
   await flushCloud(true);
 }
-function installCloudReset(){if(!window.G||window.G.__cloudReset)return;window.G.reset=async()=>{if(!confirm('Saison-2-Spielstand wirklich löschen? Dein Account bleibt bestehen.'))return;setCloud('Löscht …','busy');const {error}=await supabase.from(SAVE_TABLE).delete().eq('user_id',session.user.id);if(error){setCloud('Löschen fehlgeschlagen','error');alert('Cloud-Spielstand konnte nicht gelöscht werden.');return}clearLocalGame();lastUploaded='';localStorage.removeItem(SEASON_KEY);location.reload()};window.G.__cloudReset=true}
+function installCloudReset(){if(!window.G||window.G.__cloudReset)return;window.G.reset=async()=>{if(!confirm('Saison-2-Spielstand wirklich löschen? Dein Account bleibt bestehen.'))return;setCloud('Löscht …','busy');const {error}=await supabase.from(SAVE_TABLE).delete().eq('user_id',session.user.id);if(error){setCloud('Löschen fehlgeschlagen','error');alert('Cloud-Spielstand konnte nicht gelöscht werden.');return}clearLocalGame();lastUploaded='';cloudUpdatedAt=null;cloudRevision=0;cloudConflict=false;localStorage.removeItem(SEASON_KEY);location.reload()};window.G.__cloudReset=true}
 
 async function enterGame(newSession){if(!newSession?.user)return;session=newSession;hideAuth();try{await reconcileSave();await Promise.all([initOnlineSystems(),initOperationsSystems(),initFeedbackSystems(),initCommunitySystems()]);await loadGame()}catch(err){console.error('CNC season2 load',err);gameLoaded=false;setCloud('Cloud-Fehler','error');$('root').innerHTML='<div class="notice"><b>Saison 2 konnte nicht geladen werden.</b><br>Bitte Verbindung prüfen und Seite neu laden.</div>'}}
 async function login(email,password){setMessage('Anmeldung läuft …');const {data,error}=await supabase.auth.signInWithPassword({email,password});if(error)throw error;setMessage('');await enterGame(data.session)}
 async function register(email,password){setMessage('Account wird erstellt …');const {data,error}=await supabase.auth.signUp({email,password});if(error)throw error;if(data.session){setMessage('');await enterGame(data.session)}else{setAuthMode('login');setMessage('Registrierung erstellt. Bitte bestätige die E-Mail und melde dich danach an.','success')}}
 function setAuthMode(mode){const registerMode=mode==='register';$('authTitle').textContent=registerMode?'Account erstellen':'Anmelden';$('authSubmit').textContent=registerMode?'REGISTRIEREN':'ANMELDEN';$('authSwitch').textContent=registerMode?'ZURÜCK ZUR ANMELDUNG':'NEUEN ACCOUNT REGISTRIEREN';$('authForm').dataset.mode=registerMode?'register':'login';setMessage('')}
 function bindUI(){setAuthMode('login');$('authSwitch').addEventListener('click',()=>setAuthMode($('authForm').dataset.mode==='login'?'register':'login'));$('authForm').addEventListener('submit',async e=>{e.preventDefault();const email=$('authEmail').value.trim().toLowerCase();const password=$('authPassword').value;if(!email||!email.includes('@'))return setMessage('Bitte eine gültige E-Mail eingeben.','error');if(password.length<8)return setMessage('Passwort: mindestens 8 Zeichen.','error');$('authSubmit').disabled=true;try{if(e.currentTarget.dataset.mode==='register')await register(email,password);else await login(email,password)}catch(err){setMessage(friendlyError(err),'error')}finally{$('authSubmit').disabled=false}});$('logoutBtn').addEventListener('click',async()=>{$('logoutBtn').disabled=true;await flushCloud(true);window.CNC_ONLINE?.stop?.();window.CNC_OPERATIONS?.stop?.();await supabase.auth.signOut();clearLocalGame();localStorage.removeItem(OWNER_KEY);location.reload()})}
-async function boot(){bindUI();showAuth();try{await initSupabase();const {data:{session:existing},error}=await supabase.auth.getSession();if(error)throw error;if(existing)await enterGame(existing);supabase.auth.onAuthStateChange((event,nextSession)=>{if(event==='SIGNED_OUT'){session=null}if(event==='SIGNED_IN'&&nextSession&&!gameLoaded)enterGame(nextSession)})}catch(err){console.error('CNC auth boot',err);setMessage('Online-Anmeldung konnte nicht geladen werden. Bitte Internetverbindung prüfen.','error')}window.addEventListener('online',()=>setCloud('Online – synchronisiert','ok'));window.addEventListener('offline',()=>setCloud('Offline – lokal','error'));document.addEventListener('visibilitychange',()=>{if(document.hidden)flushCloud(true)});window.addEventListener('pagehide',()=>{flushCloud(true)})}
+async function boot(){bindUI();showAuth();try{await initSupabase();const {data:{session:existing},error}=await supabase.auth.getSession();if(error)throw error;if(existing)await enterGame(existing);supabase.auth.onAuthStateChange((event,nextSession)=>{if(event==='SIGNED_OUT'){session=null}if(event==='SIGNED_IN'&&nextSession&&!gameLoaded)enterGame(nextSession)})}catch(err){console.error('CNC auth boot',err);setMessage('Online-Anmeldung konnte nicht geladen werden. Bitte Internetverbindung prüfen.','error')}window.addEventListener('online',()=>{if(!cloudConflict)setCloud('Online – synchronisiert','ok')});window.addEventListener('offline',()=>{if(!cloudConflict)setCloud('Offline – lokal','error')});document.addEventListener('visibilitychange',()=>{if(document.hidden)flushCloud(true)});window.addEventListener('pagehide',()=>{flushCloud(true)})}
 
 boot();
